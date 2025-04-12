@@ -9,7 +9,7 @@ Cung cấp hệ thống gợi ý món ăn thông minh dựa trên **Graph Neural
 
 ## 🚀 Mô tả
 
-Đây là một **API RESTful** được triển khai trên Hugging Face Spaces, sử dụng mô hình học sâu để đưa ra các gợi ý món ăn phù hợp với từng người dùng. Hệ thống sử dụng thông tin:
+Đây là một **API ** được triển khai trên Hugging Face Spaces, sử dụng mô hình học sâu để đưa ra các gợi ý món ăn phù hợp với từng người dùng. Hệ thống sử dụng thông tin:
 
 - Hồ sơ người dùng (bệnh lý, sở thích ăn uống)
 - Quan hệ giữa món ăn và thành phần dinh dưỡng
