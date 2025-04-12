@@ -1,0 +1,10 @@
+{
+    "runtime": "docker",
+    "storage": 5,
+    "env": {
+      "TRANSFORMERS_CACHE": "/tmp",
+      "HF_HOME": "/tmp"
+    },
+    "init_commands": ["python code/fix.py"],
+    "port": 7860
+  }

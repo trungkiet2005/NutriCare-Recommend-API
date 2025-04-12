@@ -1,0 +1,201 @@
+GPT_results,BERT_score
+"No, because the food is high in sugar, high in calories, and low in nutrients.",0.71349347
+"No, because the food is low in calories, low in protein, low in fats, and low in carbohydrates.",0.6939895
+"No, because the food is low in calories, low in fat, low in protein, and high in carbohydrates.",0.7172312
+"No, because the food is high in fats, high in calories, and low in essential nutrients.",0.70882463
+"No, because the food is high in sodium.",0.695133
+"No, because the food is low in nutrients, low in calories, and low in macronutrients.",0.7057505
+"No, because the food is low in nutrients.",0.6557653
+"No, because the food is high in processed ingredients, low in fiber, vitamins, and minerals, and may contain artificial additives.",0.6341496
+"No, because the food is high in natural sugars, low in protein, and low in fat.",0.7323527
+"No, because the food is high in carbohydrates, low in protein, low in fiber, and may contain added sugars.",0.6954504
+"No, because the food is high in saturated fats, high in sodium, and low in fiber.",0.7343361
+"No, because the food is low in fat, low in calories, low in saturated fat, low in cholesterol, high in protein, high in calcium.",0.80727214
+"No, because the food is low in nutrients.",0.6557653
+"No, because the food is high in added sugars and low in nutrients.",0.69591945
+"No, because the food is high in saturated fat, high in sodium, and low in fiber.",0.7498818
+"No, because the food is low in calories and protein, and high in sugar.",0.7164306
+"No, because the food is high in carbohydrates, low in saturated fats, and high in fiber.",0.7074402
+"No, because the food is low in calories, low in nutrients, and does not provide significant health benefits.",0.6769281
+"No, because the food is low in nutrients, low in fiber, and moderate in fat.",0.7145845
+"No, because the food is low in nutrients, low in fiber, and may contain artificial sweeteners.",0.6495586
+"No, because the food is high in sugar.",0.69044745
+"No, because the food is high in sugar, high in calories, and may not provide adequate nutrients for an adult.",0.6492642
+"No, because the food is high in carbs and sugars, low in protein, and low in fats.",0.7056142
+"No, because the food is high in natural sugars and low in fiber.",0.686328
+"No, because the food is low in nutrients and high in artificial sweeteners.",0.65862274
+"No, because the food is high in added sugars, high in calories, and offers no nutritional benefits.",0.69236255
+"No, because the food is high in saturated fat, high in sodium and low in essential nutrients.",0.7017158
+"No, because the food is low in calories, low in saturated fat, high in calcium, and high in vitamin D.",0.7064478
+"No, because the food is low in calories, low in sodium, and high in fiber.",0.72501415
+"No, because the food is low in calories, low in fat, and low in protein.",0.73787934
+"No, because the food is high in added sugars, high in calories, low in fiber, and lacks essential nutrients.",0.6892602
+"No, because the food is high in saturated fats, high in cholesterol, and low in fiber.",0.7319341
+"No, because the food is high in protein.",0.6777264
+"No, because the food is high in sugar.",0.6681691
+"No, because the food is low in nutrients.",0.6557653
+"No, because the food is high in added sugar.",0.69268215
+"No, because the food is high in cholesterol, high in saturated fat, and moderate in protein.",0.6734667
+"No, because the food is high in refined carbohydrates, low in fiber, low in protein, and lacks essential nutrients.",0.6577415
+"No, because the food is high in natural sugar, low in fiber, and lacks significant protein and fat.",0.6914372
+"No, because the food is high in added sugars, high in calories, and low in nutrients.",0.7163636
+"No, because the food is high in sugars, low in nutrients, and contains added fats.",0.67289466
+"No, because the food is low in calories, low in protein, and low in essential nutrients.",0.71434706
+"No, because the food is low in nutrients, high in caffeine.",0.6980283
+"No, because the food is low in nutrients.",0.6557653
+"No, because the food is high in added calcium and vitamin D.",0.6633698
+"No, because the food is high in added sugars.",0.6644729
+"No, because the food is high in added sugars and may not be suitable for someone looking to manage their sugar intake.",0.593594
+"No, because the food is low in calories, low in protein, and low in essential nutrients.",0.7350964
+"No, because the food is low in nutrients, low in calories, and does not provide a significant amount of essential nutrients for a balanced diet.",0.6638358
+"No, because the food is high in calories, high in sugar, and low in fiber and essential nutrients.",0.68063736
+"No, because the food is high in added sugars, low in fiber, and lacks essential nutrients.",0.66470337
+"No, because the food is low in nutrients, low in calories, and low in macronutrients.",0.7057505
+"No, because the food is low in nutrients, low in protein, low in vitamins and minerals.",0.7192914
+"No, because the food is high in added sugars, low in fiber, and may contain artificial ingredients.",0.6320215
+"No, because the food is high in saturated fat, high in sodium, and low in fiber.",0.7108553
+"No, because the food is low in nutrients.",0.6557653
+"No, because the food is low in calories, low in protein, and low in fat.",0.752059
+"No, because the food is low in protein, low in fat, and high in carbohydrates.",0.66874176
+"No, because the food is low in calories, low in protein, and low in essential nutrients.",0.71434706
+"No, because the food is low in nutrients, low in calories, and does not provide any significant nutritional value.",0.6667526
+"No, because the food is low in calories, low in protein, and low in essential nutrients.",0.71434706
+"No, because the food is low in calories, low in fat, high in fiber, high in iron, high in vitamin A, high in vitamin C, and low in sodium.",0.71205276
+"No, because the food is high in added sugars.",0.7614097
+"No, because the food is high in added sugars and calories, low in nutrients, and may contribute to health issues such as obesity and dental problems.",0.63900733
+"No, because the food is low in calories, low in fat, low in saturated fat, high in protein, high in calcium, high in vitamin A, and high in vitamin D.",0.73451126
+"No, because the food is low in nutrients, low in protein, and does not provide significant health benefits.",0.64459455
+"No, because the food is low in fiber, low in protein, and high in natural sugars.",0.70038205
+"No, because the food is low in nutrients, high in caffeine.",0.70682055
+"No, because the food is high in sugar.",0.69044745
+"No, because the food is high in natural sugars and carbohydrates, low in protein, and low in fats.",0.6772638
+"No, because the food is high in saturated fat, low in fiber, and may not be suitable for individuals with lactose intolerance.",0.5922598
+"No, because the food is low in calories, low in nutrients, and does not provide a significant amount of essential nutrients.",0.68011415
+"No, because the food is high in added sugars.",0.67443526
+"No, because the food is low in calories, low in fat, and high in protein.",0.7399926
+"No, because the food is low in nutrients, high in caffeine.",0.6742696
+"No, because the food is high in caffeine.",0.6704584
+"No, because the food is high in sugar, high in calories, and low in fiber.",0.70456547
+"No, because the food is high in sugar and provides no essential nutrients.",0.6427421
+"No, because the food is low in nutrients, and contains no significant macronutrients or micronutrients.",0.6074593
+"No, because the food is high in natural sugars, low in fiber, and lacks essential nutrients present in whole fruits.",0.6484385
+"No, because the food is low in calories, low in fat, and high in calcium.",0.7316824
+"No, because the food is a sugar substitute and provides no significant nutritional value.",0.6160406
+"No, because the food is high in sodium.",0.697892
+"No, because the food is low in nutrients, low in calories.",0.69846725
+"No, because the food is low in calories, low in protein, and low in fat.",0.7259306
+"No, because the food is high in capsaicin and vitamin C, low in calories, and low in fat.",0.714704
+"No, because the food is high in artificial sweeteners, low in nutrients, and offers no health benefits.",0.6531348
+"No, because the food is high in carbohydrates, low in fiber, and low in essential nutrients.",0.6980304
+"No, because the food is high in saturated fats and cholesterol.",0.68654805
+"No, because the food is: low in nutrients.",0.6478734
+"No, because the food is high in fat, high in salt, and may not provide a balanced nutritional profile.",0.67280596
+"No, because the food is low in nutrients.",0.68276125
+"No, because the food is low in calories, low in protein, and low in fat.",0.73588943
+"No, because the food is low in nutrients, low in calories, and low in essential vitamins and minerals.",0.69575936
+"No, because the food is high in sugar and low in protein, vitamins, and minerals.",0.6847634
+"No, because the food is low in calories, low in protein, and low in fat.",0.7259306
+"No, because the food is devoid of significant nutrients.",0.6056154
+"No, because the food is low in nutrients.",0.6363234
+"No, because the food is low in calories, low in protein, and low in essential nutrients like vitamins and minerals.",0.7021707
+"No, because the food is devoid of any nutrients.",0.597153
+"No, because the food is high in saturated fat, high in cholesterol, and low in essential nutrients.",0.7831862
+"No, because the food is high in unhealthy fats and calories.",0.6733703
+"No, because the food is high in sodium, low in nutrients, and high in unhealthy fats.",0.69513345
+"No, because the food is high in sodium, high in saturated fat, high in calories, and high in processed ingredients.",0.6908251
+"No, because the food is low in nutrients, high in carbohydrates, and low in protein.",0.73047197
+"No, because the food is high in sugar and low in essential nutrients like vitamins and minerals.",0.66947925
+"No, because the food is high in sodium.",0.8185373
+"No, because the food is high in sugars.",0.7479138
+"No, because the food is high in sodium.",0.7238875
+"No, because the food is high in calories, high in unhealthy fats, and low in nutrients.",0.7190293
+"No, because the food is high in fat, high in sodium, and low in nutrients.",0.72931486
+"No, because the food is low in calories, low in fat, and high in protein.",0.7330919
+"No, because the food is high in sodium, high in saturated fats, high in cholesterol, and low in fiber.",0.81419253
+"No, because the food is high in saturated fat and sodium, and low in essential nutrients.",0.70466495
+"No, because the food is high in saturated fat, high in sodium, and low in fiber.",0.7598354
+"No, because the food is high in saturated fat, high in sodium, and low in fiber.",0.74018
+"No, because the food is high in sugar, high in unhealthy fats, and low in nutrients.",0.7127905
+"No, because the food is high in calories, high in saturated fat, high in sodium, and low in fiber.",0.7625249
+"No, because the food is high in saturated fat and low in essential nutrients.",0.7039438
+"No, because the food is high in sodium and saturated fat, low in fiber and other essential nutrients.",0.73169905
+"No, because the food is high in saturated fat, high in sodium, and low in fiber.",0.76733124
+"No, because the food is high in sugar.",0.69271266
+"No, because the food is high in refined carbohydrates, low in fiber, and it may contain unhealthy fats.",0.6485542
+"No, because the food is high in added sugars, high in saturated fats, and low in essential nutrients.",0.7484392
+"No, because the food is high in fat, high in sodium, and high in processed meats.",0.7241751
+"No, because the food is low in nutrients, low in calories, and does not provide any significant nutritional value.",0.65758073
+"No, because the food is high in cholesterol and sodium.",0.80497766
+"No, because the food is high in sugar and unhealthy fats.",0.68478566
+"No, because the food is high in calories and contains no significant nutrients.",0.68356663
+"No, because the food is high in saturated fat, high in sodium, and low in fiber.",0.7439432
+"No, because the food is high in sodium.",0.8185373
+"No, because the food is high in saturated fat, high in cholesterol, and low in essential nutrients.",0.7831862
+"No, because the food is high in refined carbohydrates and low in fiber, vitamins, and minerals.",0.6563905
+"No, because the food is low in calories, low in nutrients, and does not provide a substantial amount of essential nutrients needed for overall health.",0.6310531
+"No, because the food is high in total fat, saturated fat, and calories, and low in essential nutrients.",0.70589566
+"No, because the food is low in fiber, low in protein, high in sugar, and may be high in sodium.",0.7485102
+"No, because the food is high in saturated fat and sodium, low in fiber, vitamins, and minerals.",0.6892896
+"No, because the food is high in calories and high in saturated fat.",0.74312806
+"No, because the food is high in calories, high in sodium, and low in fiber.",0.74873054
+"No, because the food is high in refined carbohydrates, lacks significant fiber, and may contain added preservatives.",0.61068344
+"No, because the food is high in saturated fat, high in sodium, and low in dietary fiber.",0.74768287
+"No, because the food is high in added sugars, high in saturated fats, low in nutrients, and high in calories.",0.76984936
+"No, because the food is high in saturated fats, high in sodium, and low in essential nutrients.",0.71236837
+"No, because the food is high in sugar, low in fiber, and potentially high in additives.",0.68093705
+"No, because the food is high in saturated fat, high in calories, high in sodium, and low in nutrients.",0.77937347
+"No, because the food is high in sodium, high in saturated fat, and low in fiber.",0.7642343
+"No, because the food is high in saturated fat, high in sodium, and low in fiber.",0.7667722
+"No, because the food is high in salt, high in saturated fat, high in calories, and high in unhealthy fats.",0.703794
+"No, because the food is high in fat, high in cholesterol, and high in sodium.",0.7153385
+"No, because the food is high in sodium, low in fiber, and low in vitamins and minerals.",0.7285581
+"No, because the food is high in sugars, high in saturated fats, and low in essential nutrients.",0.69502664
+"No, because the food is high in saturated fat, high in cholesterol, and high in sodium.",0.80547965
+"No, because the food is high in calories, high in saturated fat, high in sugar, and low in essential nutrients.",0.72845584
+"No, because the food is high in fat and sodium, low in fiber and vitamins.",0.7313719
+"No, because the food is high in saturated fat, cholesterol, and sodium.",0.7812926
+"No, because the food is high in saturated fat and sodium, low in fiber, vitamins, and minerals.",0.73413163
+"No, because the food is high in carbohydrates, low in fiber, and low in protein.",0.678399
+"No, because the food is high in salt, and oil, and low in variety of nutrients.",0.6752272
+"No, because the food is high in sugars.",0.68123865
+"No, because the food is high in saturated fat and sodium, and low in fiber and essential nutrients.",0.70538276
+"No, because the food is high in saturated fat, high in sodium, and high in added sugars.",0.72831464
+"No, because the food is high in saturated fat, high in sodium, and low in fiber.",0.68599904
+"No, because the food is high in mayonnaise, high in salt, and low in fiber.",0.7333055
+"No, because the food is high in sodium, low in fiber, and low in vitamins and minerals.",0.71685886
+"No, because the food is low in nutrients, low in fiber, and may be high in refined carbohydrates.",0.6416504
+"No, because the food is high in saturated fat and calories.",0.7156902
+"No, because the food is high in sodium.",0.753935
+"No, because the food is high in calories, high in saturated fat, and high in sodium.",0.7396233
+"No, because the food is high in saturated fat and calories, low in vitamins and minerals.",0.7644586
+"No, because the food is high in sodium.",0.8185373
+"No, because the food is high in sugar and low in essential nutrients.",0.7318552
+"No, because the food is high in calories, high in unhealthy fats, and low in essential nutrients.",0.7156857
+"No, because the food is high in calories, high in unhealthy fats (from frying in vegetable oil), high in sodium, and low in fiber and essential nutrients.",0.6742218
+"No, because the food is high in alcohol and provides no essential nutrients.",0.6584362
+"No, because the food is high in fat, high in calories, and may contain added salt.",0.6762955
+"No, because the food is low in nutrients.",0.67439324
+"No, because the food is high in calories, high in carbohydrates, and high in sodium.",0.6979283
+"No, because the food is high in sugars.",0.7191964
+"No, because the food is high in refined carbohydrates, low in fiber, and may lack essential nutrients.",0.6437661
+"No, because the food is low in vitamins and minerals, high in carbohydrates, and low in protein.",0.6980297
+"No, because the food is high in sugar, high in saturated fat, and low in nutrients.",0.7585685
+"No, because the food is high in saturated fat, high in sodium, and high in calories.",0.7853447
+"No, because the food is high in added sugars and low in essential nutrients.",0.7208517
+"No, because the food is high in added sugars, high in saturated fats, and low in essential nutrients.",0.74042654
+"No, because the food is high in sodium, high in saturated fat, and low in fiber.",0.71882844
+"No, because the food is low in nutrients, high in artificial sweeteners, and provides no significant health benefits.",0.63719046
+"No, because the food is high in calories, high in unhealthy fats, and low in essential nutrients.",0.6682545
+"No, because the food is low in calories, low in sodium, and high in fiber.",0.7703029
+"No, because the food is high in calories, high in saturated fat, and low in nutrients.",0.73814625
+"No, because the food is low in calories, has no significant macronutrients, and lacks essential vitamins and minerals.",0.63352066
+"No, because the food is low in nutrients, low in calories, and low in macronutrients.",0.67198163
+"No, because the food is high in sodium and low in nutrients.",0.680373
+"No, because the food is high in refined carbohydrates, low in fiber, and low in essential nutrients.",0.7044317
+"No, because the food is lacking in nutrients, high in essential hydration.",0.68818027
+"No, because the food is high in sodium.",0.8185373
+"No, because the food is high in refined carbohydrates and low in fiber and protein.",0.69720834
+"No, because the food is high in cholesterol, high in saturated fats, and high in sodium.",0.71116245
+"No, because the food is devoid of nutrients and generally doesn't provide any significant nutritional value.",0.6007136
+"No, because the food is high in saturated fat, high in sodium, and low in fiber.",0.7439432
+"No, because the food is high in sodium.",0.792043
