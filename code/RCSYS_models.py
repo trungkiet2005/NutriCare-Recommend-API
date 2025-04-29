@@ -3,7 +3,7 @@ from torch_geometric.nn import GCNConv, GATConv, SAGEConv, SignedConv
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_sparse import SparseTensor
+from torch_sparse import SparseTensor, matmul
 from torch_geometric.nn import MessagePassing
 from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch import Tensor

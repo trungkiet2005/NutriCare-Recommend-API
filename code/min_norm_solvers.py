@@ -38,6 +38,8 @@ class MinNormSolver:
         ie. min_c |\sum c_i x_i|_2^2 st. \sum c_i = 1 , 1 >= c_1 >= 0 for all i, c_i + c_j = 1.0 for some i, j
         """
         dmin = 1e8
+        sol = None  # Khởi tạo sol với giá trị mặc định
+        
         for i in range(len(vecs)):
             for j in range(i+1,len(vecs)):
                 if (i,j) not in dps:
@@ -57,6 +59,42 @@ class MinNormSolver:
                 if d < dmin:
                     dmin = d
                     sol = [(i,j),c,d]
+        
+        # Kiểm tra xem sol có được định nghĩa không
+        if sol is None:
+            # Nếu sol chưa được định nghĩa, tạo một giá trị mặc định
+            # Lấy hai vector đầu tiên nếu có
+            if len(vecs) >= 2:
+                i, j = 0, 1
+                # Tính dps nếu chưa có
+                if (i,i) not in dps:
+                    dps[(i, i)] = 0.0
+                    for k in range(len(vecs[i])):
+                        dps[(i,i)] += torch.mul(vecs[i][k], vecs[i][k]).sum().data.cpu().numpy()
+                if (j,j) not in dps:
+                    dps[(j, j)] = 0.0   
+                    for k in range(len(vecs[i])):
+                        dps[(j, j)] += torch.mul(vecs[j][k], vecs[j][k]).sum().data.cpu().numpy()
+                if (i,j) not in dps:
+                    dps[(i, j)] = 0.0
+                    for k in range(len(vecs[i])):
+                        dps[(i,j)] += torch.mul(vecs[i][k], vecs[j][k]).sum().data.cpu().numpy()
+                    dps[(j, i)] = dps[(i, j)]
+                
+                c, d = MinNormSolver._min_norm_element_from2(dps[(i,i)], dps[(i,j)], dps[(j,j)])
+                sol = [(i,j), c, d]
+            # Nếu chỉ có một vector
+            elif len(vecs) == 1:
+                i = 0
+                if (i,i) not in dps:
+                    dps[(i, i)] = 0.0
+                    for k in range(len(vecs[i])):
+                        dps[(i,i)] += torch.mul(vecs[i][k], vecs[i][k]).sum().data.cpu().numpy()
+                sol = [(i,i), 1.0, dps[(i,i)]]
+            # Trường hợp không có vector nào
+            else:
+                sol = [(0,0), 1.0, 0.0]
+        
         return sol, dps
 
     def _projection2simplex(y):

@@ -8,9 +8,14 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-import json
+import json 
+import math
+import google.generativeai as genai
+import re
+import requests
 
-from RCSYS_utils import *
+
+from RCSYS_utils import *   
 from torch_geometric.nn import GCNConv, GATConv, SAGEConv, SignedConv
 import torch
 import torch.nn as nn
@@ -128,6 +133,19 @@ def convert_to_python_native(obj):
         return obj
 
 
+def clean_float_values(obj):
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    elif isinstance(obj, dict):
+        return {k: clean_float_values(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_float_values(v) for v in obj]
+    else:
+        return obj
+
+
 # Thêm sau phần import hoặc các hàm tiện ích khác
 # Biến toàn cục để lưu trữ graph và model đã tải
 _graph = None
@@ -169,8 +187,8 @@ def get_model():
         logger.info("Đã khởi tạo model thành công")
         
         model_paths = [
-            os.path.join(BASE_DIR, 'trained_model.pth'),
-            os.path.join(parent_dir, 'trained_model.pth')
+            os.path.join(BASE_DIR, 'vn_trained_model.pth'),
+            os.path.join(parent_dir, 'vn_trained_model.pth')
         ]
         
         model_file = None
@@ -189,6 +207,68 @@ def get_model():
         logger.info("Đã tải model weights thành công")
     
     return _model
+
+def convert_user_input_to_numeric(user_features):
+    """
+    Chuyển đổi các trường input dạng chữ sang số theo bảng mã hóa đã định nghĩa.
+    """
+    gender_map = {"Nam": 1, "Nữ": 2}
+    age_group_map = {
+        "Dưới 18 tuổi": 1,
+        "Từ 18 đến 24 tuổi": 2,
+        "Từ 25 đến 34 tuổi": 3,
+        "Từ 35 đến 44 tuổi": 4,
+        "Từ 45 đến 54 tuổi": 5,
+        "Từ 55 đến 64 tuổi": 6,
+        "Trên 65 tuổi": 7
+    }
+    race_map = {
+        "Kinh": 0,
+        "Hoa": 1,
+        "Chăm": 2,
+        "Khmer": 3,
+        "Tày": 4,
+        "Khác": 5
+    }
+    household_income_map = {
+        "Dưới 3 triệu/tháng": 0,
+        "3 - 5 triệu/tháng": 1,
+        "5 - 7 triệu/tháng": 2,
+        "7 - 10 triệu/tháng": 3,
+        "10 - 15 triệu/tháng": 4,
+        "15 - 20 triệu/tháng": 5,
+        "20 - 25 triệu/tháng": 6,
+        "25 - 30 triệu/tháng": 7,
+        "30 - 40 triệu/tháng": 8,
+        "40 - 50 triệu/tháng": 9,
+        "50 - 60 triệu/tháng": 10,
+        "Trên 60 triệu/tháng": 11
+    }
+    education_map = {
+        "Chưa đi học": 0,
+        "Tiểu học": 1,
+        "Trung học cơ sở": 2,
+        "Trung học phổ thông": 3,
+        "Trung cấp": 4,
+        "Cao đẳng": 5,
+        "Đại học": 6,
+        "Sau đại học": 7,
+        "Thạc sĩ": 8,
+        "Tiến sĩ": 9
+    }
+
+    result = user_features.copy()
+    if "gender" in result and isinstance(result["gender"], str):
+        result["gender"] = gender_map.get(result["gender"], result["gender"])
+    if "age_group" in result and isinstance(result["age_group"], str):
+        result["age_group"] = age_group_map.get(result["age_group"], result["age_group"])
+    if "race" in result and isinstance(result["race"], str):
+        result["race"] = race_map.get(result["race"], result["race"])
+    if "household_income" in result and isinstance(result["household_income"], str):
+        result["household_income"] = household_income_map.get(result["household_income"], result["household_income"])
+    if "education" in result and isinstance(result["education"], str):
+        result["education"] = education_map.get(result["education"], result["education"])
+    return result
 
 def create_user_feature_tensor(user_features, graph=None):
     """
@@ -494,19 +574,25 @@ def find_similar_users(new_user_features, graph, top_k=5, similarity_threshold=0
 #----------------------------------------------------------------
 # Thêm vào phần định nghĩa schema
 class NewUserInput(BaseModel):
-    gender: int  # 1: nam, 2: nữ
-    age_group: Optional[int] = None  # 1-7
-    race: Optional[int] = None  # 0-5
-    household_income: Optional[int] = None  # 0-11
-    education: Optional[int] = None  # 0-9
-    tags: Optional[List[int]] = None  # Danh sách tags sức khỏe/dinh dưỡng
+    gender: str = "Nam" # "Nam" hoặc "Nữ"
+    age_group: Optional[str] = "Dưới 18 tuổi"  # "Dưới 18 tuổi", "Từ 18 đến 24 tuổi", ...
+    race: Optional[str] = "Kinh"  # "Kinh", "Hoa", "Chăm", "Khmer", "Tày", "Khác"
+    household_income: Optional[str] = "Dưới 3 triệu/tháng"  # "Dưới 3 triệu/tháng", "3 - 5 triệu/tháng", ...
+    education: Optional[str] = "Chưa đi học"  # "Chưa đi học", "Tiểu học", "Trung học cơ sở", ...
+    tags: Optional[List[int]] = None  # Danh sách tags sức khỏe/dinh dưỡng (giữ nguyên nếu là số)
     similarity_threshold: Optional[float] = 0.3  # Ngưỡng tương đồng tối thiểu
     top_k: Optional[int] = 5  # Số lượng user tương tự muốn trả về
+    symptom: Optional[List[str]] = None  # Danh sách triệu chứng
+    spefical_diet: Optional[List[str]] = None  # Danh sách chế độ ăn đặc biệt
+    disease: Optional[List[str]] = None  # Danh sách bệnh lý
 
 
 # Import các function đã định nghĩa
-def recommend_for_user(user_id, model, graph, k=20):
+def recommend_for_user(user_id, model, graph, k=20, excluded_food_ids=None):
     try:
+        if excluded_food_ids is None:
+            excluded_food_ids = set()
+            
         user_idx = None
         for i, node_id in enumerate(graph['user'].node_id):
             if node_id.item() == user_id:
@@ -540,17 +626,36 @@ def recommend_for_user(user_id, model, graph, k=20):
         # Đặt điểm của thực phẩm đã tiêu thụ thành -inf
         scores[consumed_food_indices] = -float('inf')
         
-        # Lấy k thực phẩm có điểm cao nhất
-        _, indices = torch.topk(scores, k)
+        # Get food IDs to exclude food_ids from the exclusion list
+        food_node_ids = graph['food'].node_id.cpu().numpy()
+        
+        # Create a mask for excluded foods
+        excluded_indices = []
+        for i, food_id in enumerate(food_node_ids):
+            if food_id.item() in excluded_food_ids:
+                excluded_indices.append(i)
+        
+        # Đặt điểm của thực phẩm cần loại trừ thành -inf
+        scores[excluded_indices] = -float('inf')
+        
+        # We need to get more than k items since some might be excluded
+        _, indices = torch.topk(scores, min(len(scores), k*5))  # Get 5 times as many in case of exclusions
         indices = indices.cpu().numpy()
         
-        # Chuyển indices thành food_ids
-        recommended_food_ids = [graph['food'].node_id[idx].item() for idx in indices]
+        # Convert indices to food_ids
+        recommended_food_ids = []
+        for idx in indices:
+            food_id = graph['food'].node_id[idx].item()
+            if food_id not in excluded_food_ids:
+                recommended_food_ids.append(food_id)
+                if len(recommended_food_ids) >= k*2:  # Get twice as many to have buffer for milk filtering
+                    break
         
-        return recommended_food_ids
+        return recommended_food_ids[:k*2]  # We'll filter milk-containing foods later
     except Exception as e:
         logger.error(f"Lỗi trong hàm recommend_for_user: {str(e)}")
         raise Exception(f"Lỗi trong hàm recommend_for_user: {str(e)}")
+
 
 def get_user_node_info(user_id):
     # Tìm index của user_id trong graph
@@ -752,6 +857,7 @@ def get_recommendation_for_user(input: UserInput):
         logger.info(f"Đã tạo gợi ý thành công cho user_id: {user_id}")
         
         # Đảm bảo kết quả cuối cùng không chứa kiểu dữ liệu NumPy hoặc PyTorch
+        result = clean_float_values(result)
         return convert_to_python_native(result)
 
     except Exception as e:
@@ -763,6 +869,309 @@ def get_recommendation_for_user(input: UserInput):
             "message": "Đã xảy ra lỗi khi xử lý yêu cầu", 
             "detail": str(e)
         }
+
+
+def generate_nutrition_tags_with_gemini(
+    symptoms=None, 
+    special_diet=None, 
+    diseases=None,
+    api_key=None
+):
+    """
+    Generate nutrition tags using Google's Gemini model based on user health information.
+    
+    Args:
+        symptoms: List of user symptoms
+        special_diet: List of user special diets
+        diseases: List of user diseases/conditions
+        api_key: Gemini API key (can be set via GEMINI_API_KEY env var)
+    
+    Returns:
+        List[int]: List of 14 binary values (0 or 1) for nutrition tags in this order:
+        [low_calorie, high_calorie, low_carb, high_carb, low_protein, high_protein,
+         low_sugar, high_sugar, low_saturated_fat, high_saturated_fat,
+         low_cholesterol, high_cholesterol, low_sodium, high_sodium]
+    """
+    # Get API key from parameter or environment variable
+    api_key = api_key or "AIzaSyDHRsA1G42JsicRxJFMMZZ9chcwLxDoVZU"
+    if not api_key:
+        logger.error("No Gemini API key provided. Please set GEMINI_API_KEY environment variable or pass as parameter.")
+        return [0] * 14  # Return all zeros if no API key
+
+    # Format health information for the prompt
+    symptoms_text = "None" if not symptoms else ", ".join(symptoms)
+    special_diet_text = "None" if not special_diet else ", ".join(special_diet)
+    diseases_text = "None" if not diseases else ", ".join(diseases)
+    
+    prompt = f"""
+You are a nutrition expert system. Analyze the following user health information and determine appropriate nutrition tags.
+
+HEALTH INFORMATION:
+- Symptoms: {symptoms_text}
+- Special Diets: {special_diet_text}
+- Medical Conditions: {diseases_text}
+
+Based on this information, generate nutritional tags for the user. For each tag, determine if it should be set (1) or not set (0).
+You must only respond with a JSON format containing the exact 14 tags in this order:
+[low_calorie, high_calorie, low_carb, high_carb, low_protein, high_protein, low_sugar, high_sugar, low_saturated_fat, high_saturated_fat, low_cholesterol, high_cholesterol, low_sodium, high_sodium]
+
+Rules:
+1. If contradictory information exists (e.g., both weight gain and weight loss needs), use medical conditions as the priority.
+2. For diabetic patients, always set low_sugar and low_carb.
+3. For hypertension or heart conditions, set low_sodium and low_saturated_fat.
+4. For kidney disease, set low_protein and low_sodium.
+5. For underweight patients, set high_calorie and high_protein.
+6. For overweight patients, set low_calorie and low_saturated_fat.
+
+RESPOND ONLY WITH A JSON ARRAY of exactly 14 binary values (0 or 1).
+"""
+
+    try:
+        # Use requests library to call Gemini API directly
+        url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent"
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": api_key
+        }
+        
+        payload = {
+            "contents": [{
+                "parts": [{
+                    "text": prompt
+                }]
+            }]
+        }
+        
+        response = requests.post(url, json=payload, headers=headers)
+        
+        if response.status_code != 200:
+            logger.error(f"Error with Gemini API call: HTTP {response.status_code} - {response.text}")
+            return [0] * 14
+        
+        response_data = response.json()
+        
+        # Extract text from the response
+        if "candidates" in response_data and len(response_data["candidates"]) > 0:
+            if "content" in response_data["candidates"][0] and "parts" in response_data["candidates"][0]["content"]:
+                parts = response_data["candidates"][0]["content"]["parts"]
+                if len(parts) > 0 and "text" in parts[0]:
+                    response_text = parts[0]["text"]
+                else:
+                    logger.error("Failed to extract text from Gemini response")
+                    return [0] * 14
+            else:
+                logger.error("Invalid response structure from Gemini API")
+                return [0] * 14
+        else:
+            logger.error("No candidates in Gemini response")
+            return [0] * 14
+        
+        # Extract just the array from the response (removing any extra text)
+        array_match = re.search(r'\[\s*[01]\s*,\s*[01]\s*,\s*[01]\s*,\s*[01]\s*,\s*[01]\s*,\s*[01]\s*,\s*[01]\s*,\s*[01]\s*,\s*[01]\s*,\s*[01]\s*,\s*[01]\s*,\s*[01]\s*,\s*[01]\s*,\s*[01]\s*\]', response_text)
+        
+        if array_match:
+            tags_json = array_match.group(0)
+            tags = json.loads(tags_json)
+            
+            # Ensure we have exactly 14 tags
+            if len(tags) != 14:
+                logger.error(f"Unexpected number of tags from Gemini: {len(tags)}")
+                return [0] * 14
+                
+            return tags
+        else:
+            logger.error(f"Could not extract tags array from Gemini response: {response_text}")
+            return [0] * 14
+            
+    except Exception as e:
+        logger.error(f"Error with Gemini API call: {str(e)}")
+        return [0] * 14
+
+
+def get_excluded_food_ids():
+    """
+    Reads the first 450 lines of us_to_vn_food_mapping_all.csv and returns a set of food IDs to exclude
+    """
+    try:
+        # Try different potential paths for the file
+        mapping_file = 'us_to_vn_food_mapping_all.csv'
+        logger.info(f"Loading excluded food IDs from {mapping_file}")
+        
+        # Read only the first 450 rows
+        df_mapping = pd.read_csv(mapping_file, nrows=450)
+        
+        # Extract the us_food_id column and convert to a set for faster lookups
+        excluded_ids = set(df_mapping['us_food_id'].astype(int).tolist())
+        
+        logger.info(f"Loaded {len(excluded_ids)} excluded food IDs")
+        return excluded_ids
+    
+    except Exception as e:
+        logger.error(f"Error loading excluded food IDs: {str(e)}")
+        return set()  # Return empty set on error
+    
+    
+def filter_foods_with_gemini(food_list, ingredients_list, api_key=None):
+    """
+    Use Gemini to filter out snacks and sweet foods from recommendations
+    
+    Args:
+        food_list: List of food names
+        ingredients_list: List of ingredients for each food
+        api_key: Gemini API key
+        
+    Returns:
+        List of booleans indicating whether each food should be kept (True) or filtered out (False)
+    """
+    # If no food list, return empty result
+    if not food_list:
+        return []
+        
+    # Use default API key if not provided
+    api_key = api_key or "AIzaSyDHRsA1G42JsicRxJFMMZZ9chcwLxDoVZU"
+    
+    try:
+        # Create a batch of foods to analyze (to reduce API calls)
+        results = []
+        batch_size = 5  # Process 5 foods at a time
+        
+        for i in range(0, len(food_list), batch_size):
+            batch_foods = food_list[i:i+batch_size]
+            batch_ingredients = ingredients_list[i:i+batch_size]
+            
+            # Construct prompt for the batch
+            foods_text = ""
+            for j, (food, ingredient) in enumerate(zip(batch_foods, batch_ingredients)):
+                foods_text += f"Food {j+1}: {food}\nIngredients {j+1}: {ingredient}\n\n"
+            
+            prompt = f"""
+As a nutrition expert, analyze these foods and identify if they are snacks or sweet foods that should be excluded from a healthy diet.
+
+{foods_text}
+
+For each food, determine if it should be KEPT (healthy option) or FILTERED (unhealthy snack or sweet food).
+Categorize as FILTERED if:
+1. It's a snack food (chips, crackers, etc.)
+2. It's a dessert or sweet treat (candy, cake, cookies, ice cream, etc.)
+3. It has high sugar content
+4. It's a sugary beverage
+
+Respond with ONLY a JSON array of Boolean values (true to keep, false to filter):
+[true/false, true/false, ...] - one value for each food, in the same order as provided.
+"""
+            try:
+                # Use requests library to call Gemini API directly
+                url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent"
+                headers = {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": api_key
+                }
+                
+                payload = {
+                    "contents": [{
+                        "parts": [{
+                            "text": prompt
+                        }]
+                    }]
+                }
+                
+                response = requests.post(url, json=payload, headers=headers)
+                
+                if response.status_code != 200:
+                    logger.error(f"Error with Gemini API call: HTTP {response.status_code} - {response.text}")
+                    # Keep all foods in this batch if there's an error
+                    results.extend([True] * len(batch_foods))
+                    continue
+                
+                response_data = response.json()
+                
+                # Extract text from the response
+                if "candidates" in response_data and len(response_data["candidates"]) > 0:
+                    if "content" in response_data["candidates"][0] and "parts" in response_data["candidates"][0]["content"]:
+                        parts = response_data["candidates"][0]["content"]["parts"]
+                        if len(parts) > 0 and "text" in parts[0]:
+                            response_text = parts[0]["text"]
+                        else:
+                            logger.error("Failed to extract text from Gemini response")
+                            results.extend([True] * len(batch_foods))
+                            continue
+                    else:
+                        logger.error("Invalid response structure from Gemini API")
+                        results.extend([True] * len(batch_foods))
+                        continue
+                else:
+                    logger.error("No candidates in Gemini response")
+                    results.extend([True] * len(batch_foods))
+                    continue
+                
+                # Extract the JSON array
+                import re
+                json_match = re.search(r'\[\s*(true|false)(\s*,\s*(true|false))*\s*\]', response_text, re.IGNORECASE)
+                
+                if json_match:
+                    json_array = json_match.group(0).lower()
+                    # Replace JavaScript true/false with Python True/False
+                    json_array = json_array.replace('true', 'True').replace('false', 'False')
+                    batch_results = eval(json_array)
+                    results.extend(batch_results)
+                else:
+                    # Fallback if parsing fails
+                    logger.warning(f"Failed to parse Gemini response: {response_text}")
+                    # Keep all foods in this batch as fallback
+                    results.extend([True] * len(batch_foods))
+            except Exception as e:
+                logger.error(f"Error in Gemini filtering: {str(e)}")
+                # Keep all foods in this batch if there's an error
+                results.extend([True] * len(batch_foods))
+                
+        # Ensure we have one result for each food
+        if len(results) < len(food_list):
+            results.extend([True] * (len(food_list) - len(results)))
+        
+        return results[:len(food_list)]
+        
+    except Exception as e:
+        logger.error(f"Failed to filter foods with Gemini: {str(e)}")
+        # Default to keeping all foods if the process fails
+        return [True] * len(food_list)
+
+
+def filter_foods_without_gemini(food_list, ingredients_list):
+    """
+    Fallback function to filter foods without using Gemini API
+    Uses basic keyword matching to identify snacks and sweet foods
+    """
+    keep_flags = []
+    
+    # Keywords that might indicate snacks or sweet foods
+    sweet_keywords = [
+        'cake', 'cookie', 'pie', 'ice cream', 'candy', 'chocolate', 'sugar', 'sweet', 
+        'dessert', 'pastry', 'donut', 'doughnut', 'brownie', 'cupcake', 'syrup',
+        'caramel', 'frosting', 'icing', 'jelly', 'jam', 'honey', 'pudding',
+        'bánh ngọt', 'kẹo', 'sô cô la', 'đường', 'ngọt', 'tráng miệng', 'bánh rán',
+        'kem', 'xi-rô', 'mứt', 'mật ong'
+    ]
+    
+    snack_keywords = [
+        'chip', 'crisp', 'cracker', 'popcorn', 'pretzel', 'snack', 'bar', 
+        'puff', 'mix', 'nut mix', 'trail mix', 'jerky', 'candy', 'gum',
+        'bánh snack', 'bim bim', 'bỏng ngô', 'bánh quy', 'đồ ăn vặt', 'hạt'
+    ]
+    
+    for food, ingredients in zip(food_list, ingredients_list):
+        food_lower = food.lower()
+        ingredients_lower = ingredients.lower()
+        
+        # Check for sweet foods
+        is_sweet = any(keyword in food_lower or keyword in ingredients_lower for keyword in sweet_keywords)
+        
+        # Check for snack foods
+        is_snack = any(keyword in food_lower or keyword in ingredients_lower for keyword in snack_keywords)
+        
+        # Keep the food if it's neither a sweet food nor a snack
+        keep_flags.append(not (is_sweet or is_snack))
+    
+    return keep_flags
 
 # Thêm vào phần khai báo endpoint
 @app.post("/recommend_for_new_user")
@@ -777,34 +1186,34 @@ def get_recommendation_for_new_user(input: NewUserInput):
             logger.error(f"Lỗi khi tải graph: {str(e)}")
             return {"status": "error", "message": f"Lỗi khi tải graph: {str(e)}"}
         
-        # Tạo đặc trưng cho user mới
-        new_user_features = {
-            'gender': int(input.gender)
-        }
+        # Chuyển input từ chữ sang số
+        user_features = input.dict()
         
-        # Thêm các đặc trưng không bắt buộc nếu có
-        if input.age_group is not None:
-            new_user_features['age_group'] = int(input.age_group)
+        # Generate nutrition tags using Gemini if health information is provided
+        if input.symptom or input.spefical_diet or input.disease:
+            logger.info("Generating nutrition tags using Gemini based on health information")
+            try:
+                tags = generate_nutrition_tags_with_gemini(
+                    symptoms=input.symptom,
+                    special_diet=input.spefical_diet,
+                    diseases=input.disease
+                )
+                # Add tags to user features
+                user_features['tags'] = tags
+                logger.info(f"Generated tags with Gemini: {tags}")
+            except Exception as tag_error:
+                logger.error(f"Error generating tags with Gemini: {str(tag_error)}")
+                logger.info("Continuing without tags")
         
-        if input.race is not None:
-            new_user_features['race'] = int(input.race)
-            
-        if input.household_income is not None:
-            new_user_features['household_income'] = int(input.household_income)
-            
-        if input.education is not None:
-            new_user_features['education'] = int(input.education)
-            
-        if input.tags is not None:
-            new_user_features['tags'] = [int(tag) for tag in input.tags]  # Đảm bảo tất cả là Python ints
+        new_user_features = convert_user_input_to_numeric(user_features)
         
         # Tìm các user tương tự
         logger.info("Đang tìm các user tương tự")
         similar_users = find_similar_users(
             new_user_features, 
             graph, 
-            top_k=int(input.top_k or 5),
-            similarity_threshold=float(input.similarity_threshold or 0.3)
+            top_k=int(new_user_features.get("top_k", 5)),
+            similarity_threshold=float(new_user_features.get("similarity_threshold", 0.3))
         )
         
         if not similar_users:
@@ -822,8 +1231,11 @@ def get_recommendation_for_new_user(input: NewUserInput):
             logger.error(f"Lỗi khi tải model: {str(e)}")
             return {"status": "error", "message": f"Lỗi khi tải model: {str(e)}"}
         
-        # Lấy khuyến nghị cho user tương tự nhất
-        food_ids = recommend_for_user(most_similar_user_id, model, graph, k=20)
+        # Load excluded food IDs
+        excluded_food_ids = get_excluded_food_ids()
+        
+        # Request a large number of recommendations to ensure we have enough after filtering
+        food_ids = recommend_for_user(most_similar_user_id, model, graph, k=200, excluded_food_ids=excluded_food_ids)
         
         if not food_ids:
             logger.warning(f"Không có gợi ý nào cho user tương tự {most_similar_user_id}")
@@ -838,22 +1250,121 @@ def get_recommendation_for_new_user(input: NewUserInput):
             logger.error(f"Lỗi khi đọc file mapping: {str(e)}")
             return {"status": "error", "message": f"Lỗi khi đọc file mapping: {str(e)}"}
             
-        vn_foods = []
-        vn_ingredients = []
+        # Create a dictionary to track unique food names
+        unique_foods = {}  # {food_name: {'food_id': id, 'ingredients': ingredients}}
+        
+        # First pass: collect all valid foods (without milk)
         for food_id in food_ids:
             try:
-                food_id_str = str(int(food_id))  # Đảm bảo chuyển đổi sang chuỗi Python tiêu chuẩn
+                food_id_str = str(int(food_id))
                 if food_id_str in data:
-                    temp = data[food_id_str]
-                    vn_foods.append(str(temp[0]))
-                    vn_ingredients.append(str(temp[1]))
-                else:
-                    vn_foods.append(f'Unknown Food ({food_id_str})')
-                    vn_ingredients.append('No ingredients found')
+                    food_name = str(data[food_id_str][0])
+                    ingredients = str(data[food_id_str][1])
+                    
+                    # Skip if "milk" is in the name or ingredients (case insensitive)
+                    if "milk" in food_name.lower() or "milk" in ingredients.lower() or "sữa" in food_name.lower() or "sữa" in ingredients.lower()  or "pancake" in food_name.lower() or  "bánh" in food_name.lower():
+                        logger.info(f"Skipping milk-containing food: {food_name}")
+                        continue
+                    
+                    # Only add if this food name hasn't been seen before
+                    if food_name not in unique_foods:
+                        unique_foods[food_name] = {
+                            'food_id': food_id,
+                            'ingredients': ingredients
+                        }
+                    
+                    # Continue collecting until we have a good pool of unique foods
+                    if len(unique_foods) >= 80:
+                        break
             except Exception as e:
                 logger.error(f"Error mapping food {food_id}: {str(e)}")
-                vn_foods.append(f'Error Food ({food_id})')
-                vn_ingredients.append('Error Ingredients')
+                continue
+        
+        logger.info(f"Found {len(unique_foods)} unique valid foods after filtering milk")
+        
+        # Convert to lists for Gemini filtering
+        vn_foods = list(unique_foods.keys())
+        vn_ingredients = [info['ingredients'] for info in unique_foods.values()]
+        
+        # Use Gemini to filter out snacks and sweet foods
+        logger.info("Using Gemini to filter out snacks and sweet foods")
+        try:
+            keep_flags = filter_foods_with_gemini(vn_foods, vn_ingredients)
+            logger.info("Successfully filtered foods with Gemini")
+        except Exception as e:
+            logger.error(f"Gemini filtering failed, using fallback method: {str(e)}")
+            keep_flags = filter_foods_without_gemini(vn_foods, vn_ingredients)
+            logger.info("Used fallback filtering method")
+
+        # Log the results of the filtering
+        
+        # Keep only the foods that passed both filters
+        filtered_vn_foods = []
+        filtered_vn_ingredients = []
+        for i, keep in enumerate(keep_flags):
+            if keep and i < len(vn_foods):
+                filtered_vn_foods.append(vn_foods[i])
+                filtered_vn_ingredients.append(vn_ingredients[i])
+                
+                # Stop once we have 20 filtered foods
+                if len(filtered_vn_foods) >= 20:
+                    break
+        
+        logger.info(f"Kept {len(filtered_vn_foods)} foods after Gemini filtering")
+        
+        # If we still don't have enough foods, add more from the unique_foods dictionary
+        if len(filtered_vn_foods) < 20:
+            logger.info(f"Need {20 - len(filtered_vn_foods)} more foods to reach 20 recommendations")
+            
+            # Add remaining foods that weren't already filtered
+            for food_name, info in unique_foods.items():
+                if food_name not in filtered_vn_foods:
+                    filtered_vn_foods.append(food_name)
+                    filtered_vn_ingredients.append(info['ingredients'])
+                    
+                    if len(filtered_vn_foods) >= 20:
+                        break
+        
+        # Ensure we have exactly 20 recommendations
+        while len(filtered_vn_foods) < 20:
+            generated_name = f"Healthy Alternative {len(filtered_vn_foods)+1}"
+            # Make sure even generated names are unique
+            while generated_name in filtered_vn_foods:
+                generated_name += " (Variant)"
+                
+            filtered_vn_foods.append(generated_name)
+            filtered_vn_ingredients.append("Generated healthy recommendation")
+        
+        # Trim to exactly 20
+        filtered_vn_foods = filtered_vn_foods[:20]
+        filtered_vn_ingredients = filtered_vn_ingredients[:20]
+        
+        # Verify all names are unique
+        unique_names = set(filtered_vn_foods)
+        if len(unique_names) != len(filtered_vn_foods):
+            logger.warning("Duplicate food names found after filtering! Fixing...")
+            
+            # Fix duplicates
+            fixed_foods = []
+            fixed_ingredients = []
+            seen_names = set()
+            
+            for name, ingredients in zip(filtered_vn_foods, filtered_vn_ingredients):
+                if name in seen_names:
+                    # Add a suffix to make the name unique
+                    suffix = 1
+                    while f"{name} (Variant {suffix})" in seen_names:
+                        suffix += 1
+                    unique_name = f"{name} (Variant {suffix})"
+                    fixed_foods.append(unique_name)
+                else:
+                    fixed_foods.append(name)
+                    
+                fixed_ingredients.append(ingredients)
+                seen_names.add(fixed_foods[-1])
+            
+            filtered_vn_foods = fixed_foods
+            filtered_vn_ingredients = fixed_ingredients
         
         # Trả kết quả - đảm bảo tất cả đều là kiểu dữ liệu Python tiêu chuẩn
         result = {
@@ -870,10 +1381,16 @@ def get_recommendation_for_new_user(input: NewUserInput):
                 "similarity": float(round(similar_users[0]['similarity'], 4)),
                 "details": convert_to_python_native(similar_users[0].get('details', {}))
             },
+            "generated_tags": user_features.get('tags'),
+            "health_info": {
+                "symptoms": input.symptom,
+                "special_diet": input.spefical_diet,
+                "diseases": input.disease
+            },
             "recommendations": []
         }
         
-        for name, ingredients in zip(vn_foods, vn_ingredients):
+        for name, ingredients in zip(filtered_vn_foods, filtered_vn_ingredients):
             # Đảm bảo name và ingredients là chuỗi
             if not isinstance(name, str):
                 name = str(name)
@@ -885,10 +1402,56 @@ def get_recommendation_for_new_user(input: NewUserInput):
                 "ingredients": ingredients
             })
         
-        logger.info(f"Đã tạo gợi ý thành công cho user mới dựa trên user tương tự {most_similar_user_id}")
+        # ===== Bổ sung enrich thông tin từ food_recipe.csv và tong_hop_dinh_duong.csv =====
+        import pandas as pd
+        food_recipe_df = pd.read_csv('food_recipe.csv')
+        nutrition_df = pd.read_csv('food_nutrition_vn.csv')
+        enriched = []
+        for rec in result['recommendations']:
+            food_name = rec['name'] if 'name' in rec else rec.get('Tên món ăn')
+            # Lấy thông tin từ food_recipe.csv
+            recipe_row = food_recipe_df[food_recipe_df['Tiêu đề'] == food_name]
+            if not recipe_row.empty:
+                for col in ['Tiêu đề', 'Nguyên liệu', 'Sơ chế', 'Thực hiện', 'Cách dùng', 'Mách nhỏ', 'Thực đơn', 'Lời khuyên']:
+                    rec[col] = recipe_row.iloc[0][col]
+            # Lấy thông tin dinh dưỡng từ tong_hop_dinh_duong.csv
+            nutrition_row = nutrition_df[nutrition_df['Tên món ăn'] == food_name]
+            if not nutrition_row.empty:
+                for col in ['Tên món ăn','Carbohydrate','Calories','Protein','Sugar','Fiber dietary','Vitamin C','Vitamin D','Vitamin B12','Calcium','Iron','Cholesterol','Phosphorous','Folic acid','Saturated fat','Potassium','Sodium']:
+                    rec[col] = nutrition_row.iloc[0][col]
+            enriched.append(rec)
         
+        # Final check to ensure exactly 20 enriched recommendations
+        if len(enriched) != 20:
+            logger.warning(f"After enrichment, found {len(enriched)} recommendations instead of 20")
+            # Add or trim to exactly 20
+            while len(enriched) < 20:
+                generated_name = f"Healthy Food Option {len(enriched)+1}"
+                # Check for duplicate names in enriched
+                existing_names = [e.get('name', '') for e in enriched]
+                while generated_name in existing_names:
+                    generated_name += " (Variant)"
+                    
+                enriched.append({
+                    "name": generated_name,
+                    "ingredients": "Balanced nutritional profile"
+                })
+            enriched = enriched[:20]
+        
+        logger.info(f"Đã tạo gợi ý thành công cho user mới dựa trên user tương tự {most_similar_user_id}")
         # Đảm bảo kết quả cuối cùng không chứa kiểu dữ liệu NumPy hoặc PyTorch
-        return convert_to_python_native(result)
+        enriched = clean_float_values(enriched)
+        
+        return convert_to_python_native({
+            "status": "success", 
+            "recommendations": enriched, 
+            "generated_tags": user_features.get('tags'),
+            "health_info": {
+                "symptoms": input.symptom,
+                "special_diet": input.spefical_diet,
+                "diseases": input.disease
+            }
+        })
         
     except Exception as e:
         logger.error(f"Lỗi trong endpoint recommendation_for_new_user: {str(e)}")
@@ -899,7 +1462,6 @@ def get_recommendation_for_new_user(input: NewUserInput):
             "message": "Đã xảy ra lỗi khi xử lý yêu cầu", 
             "detail": str(e)
         }
-
 
 
 
@@ -937,8 +1499,8 @@ def health_check():
     # Kiểm tra file model
     model_file = None
     model_paths = [
-        os.path.join(BASE_DIR, 'trained_model.pth'),
-        os.path.join(parent_dir, 'trained_model.pth')
+        os.path.join(BASE_DIR, 'vn_trained_model.pth'),
+        os.path.join(parent_dir, 'vn_trained_model.pth')
     ]
     for path in model_paths:
         if os.path.exists(path):
