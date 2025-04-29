@@ -30,12 +30,6 @@ from RCSYS_models import GraphGenerator, GraphChannelAttLayer, SignedGCN, LightG
 from typing import List, Optional
 
 
-
-
-
-
-
-
 # Thiết lập logging
 logging.basicConfig(level=logging.INFO, 
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -103,6 +97,105 @@ except ImportError:
 logger.info(f"PyTorch version: {torch.__version__}")
 
 
+# Hàm mới để tạo enhanced mapping từ food_id_name_mapping.json và food_tagging.csv
+def create_enhanced_mapping():
+    """
+    Tạo mapping nâng cấp từ food_id_name_mapping.json và food_tagging.csv
+    """
+    try:
+        logger.info("Đang tạo enhanced mapping từ food_id_name_mapping.json và food_tagging.csv")
+        
+        # Tìm file food_id_name_mapping.json ở nhiều vị trí
+        mapping_paths = [
+            os.path.join(BASE_DIR, 'food_id_name_mapping.json'),
+            os.path.join(parent_dir, 'food_id_name_mapping.json'),
+            'food_id_name_mapping.json'
+        ]
+        
+        # Tìm file food_tagging.csv ở nhiều vị trí
+        tagging_paths = [
+            os.path.join(BASE_DIR, 'food_tagging.csv'),
+            os.path.join(parent_dir, 'food_tagging.csv'),
+            'food_tagging.csv',
+            os.path.join(BASE_DIR, 'food_tagging_filter.csv'),
+            os.path.join(parent_dir, 'food_tagging_filter.csv')
+        ]
+        
+        # Tìm file mapping
+        mapping_file = None
+        for path in mapping_paths:
+            if os.path.exists(path):
+                mapping_file = path
+                logger.info(f"Tìm thấy file mapping tại: {mapping_file}")
+                break
+        
+        if not mapping_file:
+            logger.error("Không tìm thấy file food_id_name_mapping.json")
+            return {}
+            
+        # Tìm file tagging
+        tagging_file = None
+        for path in tagging_paths:
+            if os.path.exists(path):
+                tagging_file = path
+                logger.info(f"Tìm thấy file tagging tại: {tagging_file}")
+                break
+        
+        if not tagging_file:
+            logger.error("Không tìm thấy file food_tagging.csv hoặc food_tagging_filter.csv")
+            return {}
+        
+        # Đọc file food_id_name_mapping.json
+        with open(mapping_file, 'r', encoding='utf-8') as f:
+            food_id_name_mapping = json.load(f)
+        
+        # Đọc file food_tagging.csv
+        food_tagging_df = pd.read_csv(tagging_file)
+        
+        # Tạo mapping mới với cấu trúc tương tự us_to_vn_food_simple_mapping.json
+        enhanced_mapping = {}
+        
+        for food_id, food_name in food_id_name_mapping.items():
+            # Khởi tạo với tên món ăn và nguyên liệu trống
+            enhanced_mapping[food_id] = [food_name, ""]
+            
+            # Tìm món ăn có tên tương ứng trong food_tagging_csv
+            matching_food = food_tagging_df[food_tagging_df['Tên món ăn'] == food_name]
+            if not matching_food.empty:
+                # Lấy nguyên liệu nếu có
+                if 'Nguyên liệu' in matching_food.columns:
+                    ingredients = matching_food['Nguyên liệu'].iloc[0]
+                    if pd.notna(ingredients):  # Kiểm tra nếu không phải NaN
+                        enhanced_mapping[food_id][1] = str(ingredients)
+            
+            # Nếu không tìm thấy hoặc không có cột Nguyên liệu, thử với cột Tiêu đề
+            if enhanced_mapping[food_id][1] == "" and 'Tiêu đề' in food_tagging_df.columns:
+                matching_food = food_tagging_df[food_tagging_df['Tiêu đề'] == food_name]
+                if not matching_food.empty and 'Nguyên liệu' in matching_food.columns:
+                    ingredients = matching_food['Nguyên liệu'].iloc[0]
+                    if pd.notna(ingredients):  # Kiểm tra nếu không phải NaN
+                        enhanced_mapping[food_id][1] = str(ingredients)
+        
+        logger.info(f"Đã tạo enhanced mapping với {len(enhanced_mapping)} món ăn")
+        return enhanced_mapping
+    
+    except Exception as e:
+        logger.error(f"Lỗi khi tạo enhanced mapping: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return {}
+
+
+# Biến toàn cục để lưu trữ mapping đã nâng cấp
+_enhanced_mapping = None
+
+def get_enhanced_mapping():
+    """Hàm lazy loading cho enhanced mapping"""
+    global _enhanced_mapping
+    if _enhanced_mapping is None:
+        _enhanced_mapping = create_enhanced_mapping()
+    return _enhanced_mapping
+
 
 # ---------------------------------------------------------------
 def convert_to_python_native(obj):
@@ -156,8 +249,8 @@ def get_graph():
     global _graph
     if _graph is None:
         graph_paths = [
-            os.path.join(parent_dir, 'processed_data/benchmark_macro.pt'),
-            os.path.join(BASE_DIR, '../processed_data/benchmark_macro.pt')
+            os.path.join(parent_dir, 'vn_food_graph.pt'),
+            os.path.join(BASE_DIR, 'vn_food_graph.pt')
         ]
         
         graph_file = None
@@ -659,11 +752,11 @@ def recommend_for_user(user_id, model, graph, k=20, excluded_food_ids=None):
 
 def get_user_node_info(user_id):
     # Tìm index của user_id trong graph
-    graph_path = os.path.join(parent_dir, 'processed_data/benchmark_macro.pt')
+    graph_path = os.path.join(parent_dir, 'vn_food_graph.pt')
     
     logger.info(f"Đang tìm file graph tại: {graph_path}")
     if not os.path.exists(graph_path):
-        alt_path = os.path.join(BASE_DIR, '../processed_data/benchmark_macro.pt')
+        alt_path = os.path.join(BASE_DIR, 'vn_food_graph.pt')
         logger.info(f"File không tồn tại, thử đường dẫn thay thế: {alt_path}")
         if os.path.exists(alt_path):
             graph_path = alt_path
@@ -714,36 +807,8 @@ def get_user_node_info(user_id):
     except Exception as e:
         logger.error(f"Lỗi khi lấy thông tin user node: {e}")
         raise Exception(f"Lỗi khi lấy thông tin user node: {e}")
-   
 
-def food_mapping_function(us_food_id):
-    # mapping_paths = [
-    #     os.path.join(parent_dir, 'us_to_vn_food_mapping_all.csv'),
-    #     os.path.join(BASE_DIR, 'us_to_vn_food_mapping_all.csv'),
-    #     '/kaggle/working/code/us_to_vn_food_mapping_all.csv',
-    #     os.path.join(BASE_DIR, 'code/us_to_vn_food_mapping_all.csv'),
-    # ]
-    
-    # mapping_file = None
-    # for path in mapping_paths:
-    #     if os.path.exists(path):
-    #         mapping_file = path
-    #         break
-    
-    # if mapping_file is None:
-    #     logger.error("Không tìm thấy file mapping")
-    #     raise FileNotFoundError("Không tìm thấy file mapping")
-    mapping_file = 'us_to_vn_food_mapping_all.csv'
-    try:
-        logger.info(f"Đang đọc file mapping từ {mapping_file}")
-        df_mapping = pd.read_csv('us_to_vn_food_mapping_all.csv')
-        df_mapping = df_mapping[df_mapping['us_food_id'] == int(us_food_id)]
-        if(len(df_mapping) > 0):
-            return df_mapping.iloc[0]
-        return {}
-    except Exception as e:
-        logger.error(f"Lỗi khi đọc file mapping: {e}")
-        raise Exception(f"Lỗi khi đọc file mapping: {e}")
+# Bỏ hàm food_mapping_function vì chúng ta sẽ sử dụng enhanced_mapping thay cho mapping
 
 # ===== Khởi tạo FastAPI =====
 app = FastAPI(title="Food Recommendation API", 
@@ -783,13 +848,15 @@ def get_recommendation_for_user(input: UserInput):
             logger.error(f"Lỗi khi tải graph hoặc model: {str(e)}")
             return {"status": "error", "message": f"Lỗi khi tải graph hoặc model: {str(e)}"}
             
-        # Đọc file mapping
+        # Lấy enhanced mapping
         try:
-            with open('us_to_vn_food_simple_mapping.json', 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            data = get_enhanced_mapping()
+            if not data:
+                logger.error("Enhanced mapping trống hoặc không thể tạo")
+                return {"status": "error", "message": "Enhanced mapping trống hoặc không thể tạo"}
         except Exception as e:
-            logger.error(f"Lỗi khi đọc file mapping: {str(e)}")
-            return {"status": "error", "message": f"Lỗi khi đọc file mapping: {str(e)}"}
+            logger.error(f"Lỗi khi lấy enhanced mapping: {str(e)}")
+            return {"status": "error", "message": f"Lỗi khi lấy enhanced mapping: {str(e)}"}
 
         # Gợi ý top-k món ăn
         logger.info("Đang tạo gợi ý món ăn")
@@ -1149,7 +1216,7 @@ def filter_foods_without_gemini(food_list, ingredients_list):
         'dessert', 'pastry', 'donut', 'doughnut', 'brownie', 'cupcake', 'syrup',
         'caramel', 'frosting', 'icing', 'jelly', 'jam', 'honey', 'pudding',
         'bánh ngọt', 'kẹo', 'sô cô la', 'đường', 'ngọt', 'tráng miệng', 'bánh rán',
-        'kem', 'xi-rô', 'mứt', 'mật ong'
+        'kem', 'xi-rô', 'mứt', 'mật ong', "bánh", "pancake"
     ]
     
     snack_keywords = [
@@ -1189,6 +1256,35 @@ def get_recommendation_for_new_user(input: NewUserInput):
         # Chuyển input từ chữ sang số
         user_features = input.dict()
         
+        # Kiểm tra xem người dùng có ăn chay không chỉ dựa vào từ khóa
+        is_vegan = False
+        
+        # Danh sách từ khóa đầy đủ để xác định ăn chay
+        vegan_keywords = [
+            # Tiếng Việt
+            "chay", "ăn chay", "thuần chay", "đồ chay", "món chay", "thực đơn chay", 
+            "không ăn thịt", "không ăn cá", "không ăn hải sản", "không ăn trứng", "không uống sữa",
+            "không sử dụng thịt", "không sử dụng cá", "không sử dụng sữa", "không sử dụng trứng",
+            "kiêng thịt", "kiêng cá", "kiêng trứng", "kiêng sữa", "ăn kiêng đạm động vật",
+            "không dùng thịt", "không dùng cá", "không dùng trứng", "không dùng sữa",
+            
+            # Tiếng Anh 
+            "vegan", "vegetarian", "plant-based", "plant based", "no meat", "no fish",
+            "no seafood", "no egg", "no milk", "no dairy", "meat-free", "fish-free",
+            "dairy-free", "egg-free", "lacto-vegetarian", "lacto vegetarian",
+            "ovo-vegetarian", "ovo vegetarian", "vegetable-based", "vegetable based"
+        ]
+        
+        # Chỉ kiểm tra từ khóa nếu có thông tin trong spefical_diet
+        if input.spefical_diet and len(input.spefical_diet) > 0:
+            logger.info("Kiểm tra từ khóa ăn chay trong spefical_diet")
+            special_diet_str = " ".join(input.spefical_diet).lower()
+            is_vegan = any(keyword in special_diet_str for keyword in vegan_keywords)
+            logger.info(f"Phát hiện người dùng ăn chay từ từ khóa: {is_vegan}")
+        else:
+            logger.info("Không có thông tin spefical_diet, không phải người ăn chay")
+            is_vegan = False
+        
         # Generate nutrition tags using Gemini if health information is provided
         if input.symptom or input.spefical_diet or input.disease:
             logger.info("Generating nutrition tags using Gemini based on health information")
@@ -1206,6 +1302,32 @@ def get_recommendation_for_new_user(input: NewUserInput):
                 logger.info("Continuing without tags")
         
         new_user_features = convert_user_input_to_numeric(user_features)
+        
+        # Tải danh sách món chay từ file
+        vegan_dishes = set()
+        if is_vegan:
+            logger.info("Đang tải danh sách món chay từ file")
+            try:
+                vegan_file_paths = [
+                    os.path.join(BASE_DIR, 'vegan_dishes.txt'),
+                    os.path.join(parent_dir, 'vegan_dishes.txt'),
+                    'vegan_dishes.txt'
+                ]
+                
+                vegan_file = None
+                for path in vegan_file_paths:
+                    if os.path.exists(path):
+                        vegan_file = path
+                        break
+                
+                if vegan_file:
+                    with open(vegan_file, 'r', encoding='utf-8') as f:
+                        vegan_dishes = set(line.strip() for line in f if line.strip())
+                    logger.info(f"Đã đọc {len(vegan_dishes)} món chay từ file {vegan_file}")
+                else:
+                    logger.error("Không tìm thấy file vegan_dishes.txt")
+            except Exception as e:
+                logger.error(f"Lỗi khi đọc file vegan_dishes.txt: {str(e)}")
         
         # Tìm các user tương tự
         logger.info("Đang tìm các user tương tự")
@@ -1234,137 +1356,172 @@ def get_recommendation_for_new_user(input: NewUserInput):
         # Load excluded food IDs
         excluded_food_ids = get_excluded_food_ids()
         
-        # Request a large number of recommendations to ensure we have enough after filtering
-        food_ids = recommend_for_user(most_similar_user_id, model, graph, k=200, excluded_food_ids=excluded_food_ids)
+        # Request nhiều món ăn để có nhiều lựa chọn hơn
+        # Yêu cầu số lượng lớn các món để có thể trả về tất cả
+        num_recommendations = 1000  # Yêu cầu nhiều hơn để có đủ món sau khi lọc
+        food_indices = recommend_for_user(most_similar_user_id, model, graph, k=num_recommendations, excluded_food_ids=excluded_food_ids)
         
-        if not food_ids:
+        if not food_indices:
             logger.warning(f"Không có gợi ý nào cho user tương tự {most_similar_user_id}")
             return {"status": "error", "message": "Không tìm thấy đề xuất cho user tương tự"}
         
-        # Mapping thông tin món ăn
-        logger.info("Đang mapping thông tin món ăn")
-        try:
-            with open('us_to_vn_food_simple_mapping.json', 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        except Exception as e:
-            logger.error(f"Lỗi khi đọc file mapping: {str(e)}")
-            return {"status": "error", "message": f"Lỗi khi đọc file mapping: {str(e)}"}
-            
-        # Create a dictionary to track unique food names
-        unique_foods = {}  # {food_name: {'food_id': id, 'ingredients': ingredients}}
+        # ===== THAY ĐỔI: ĐỌC TRỰC TIẾP TỪ FOOD_TAGGING.CSV =====
+        logger.info("Đang đọc thông tin món ăn trực tiếp từ food_tagging.csv")
         
-        # First pass: collect all valid foods (without milk)
-        for food_id in food_ids:
+        # Tìm đường dẫn file food_tagging.csv
+        food_tagging_paths = [
+            os.path.join(BASE_DIR, 'food_tagging.csv'),
+            os.path.join(parent_dir, 'food_tagging.csv'),
+            'food_tagging.csv',
+            os.path.join(BASE_DIR, 'food_tagging_filter.csv'),
+            os.path.join(parent_dir, 'food_tagging_filter.csv')
+        ]
+        
+        food_tagging_file = None
+        for path in food_tagging_paths:
+            if os.path.exists(path):
+                food_tagging_file = path
+                break
+        
+        if not food_tagging_file:
+            logger.error("Không tìm thấy file food_tagging.csv")
+            return {"status": "error", "message": "Không tìm thấy file food_tagging.csv"}
+        
+        # Đọc file food_tagging.csv
+        try:
+            df_food = pd.read_csv(food_tagging_file)
+            logger.info(f"Đã đọc {len(df_food)} món ăn từ {food_tagging_file}")
+        except Exception as e:
+            logger.error(f"Lỗi khi đọc file {food_tagging_file}: {str(e)}")
+            return {"status": "error", "message": f"Lỗi khi đọc file {food_tagging_file}: {str(e)}"}
+        
+        # Lấy tên và thông tin món ăn từ indices
+        recommended_foods = []
+        max_score = len(food_indices)
+        
+        for i, food_idx in enumerate(food_indices):
             try:
-                food_id_str = str(int(food_id))
-                if food_id_str in data:
-                    food_name = str(data[food_id_str][0])
-                    ingredients = str(data[food_id_str][1])
+                # Chuyển từ food index sang vị trí trong DataFrame
+                if food_idx < len(df_food):
+                    food_row = df_food.iloc[food_idx]
+                    food_name = food_row['Tên món ăn']
                     
-                    # Skip if "milk" is in the name or ingredients (case insensitive)
-                    if "milk" in food_name.lower() or "milk" in ingredients.lower() or "sữa" in food_name.lower() or "sữa" in ingredients.lower()  or "pancake" in food_name.lower() or  "bánh" in food_name.lower():
-                        logger.info(f"Skipping milk-containing food: {food_name}")
+                    # Kiểm tra món chay
+                    is_food_vegan = False
+                    if vegan_dishes and food_name in vegan_dishes:
+                        is_food_vegan = True
+                    else:
+                        # Danh sách từ khóa để xác định món KHÔNG phải món chay
+                        meat_keywords = [
+                            # Thịt và các loại thịt
+                            "thịt", "gà", "heo", "bò", "cá", "tôm", "thịt heo", "thịt bò", "thịt gà", 
+                            "thịt cừu", "thịt dê", "thịt vịt", "thịt ngan", "thịt ngỗng", "thịt chim",
+                            "thịt thỏ", "thịt đà điểu", "thịt ngựa", "thịt trâu", "thịt nai", "thịt hươu",
+                            "thịt nhím", "thịt lợn", "thịt bê", "jambon", "giăm bông", "chả", "giò", "xúc xích",
+                            "lạp xưởng", "patê", "thịt xông khói", "thịt hun khói", "bacon", "ham", "salami",
+                            
+                            # Hải sản
+                            "cá", "tôm", "cua", "ghẹ", "sò", "ốc", "hàu", "vẹm", "ngao", "nghêu", "sứa", 
+                            "mực", "bạch tuộc", "cá hồi", "cá ngừ", "cá thu", "cá chép", "cá rô", "cá lóc",
+                            "cá trê", "cá trắm", "cá điêu hồng", "cá chim", "cá lăng", "cá kèo", "cá diêu hồng",
+                            "tôm hùm", "tôm càng", "tôm sú", "tôm thẻ", "tôm hùm đất", "tôm hùm biển",
+                            
+                            # Trứng
+                            "trứng", "trứng gà", "trứng vịt", "trứng cút", "trứng ngỗng", "trứng đà điểu",
+                            "lòng đỏ trứng", "lòng trắng trứng", "trứng chiên", "trứng luộc", "trứng ốp la",
+                            
+                            # Sữa và các sản phẩm từ sữa
+                            "sữa", "phô mai", "pho mát", "bơ", "cream", "sữa chua", "váng sữa", "sữa đặc",
+                            "sữa tươi", "sữa bò", "sữa dê", "sữa cừu", "cheese", "bơ sữa", "kem", "yaourt",
+                            "sữa chua uống", "whipping cream", "kem tươi", "kem béo", "sữa đặc có đường",
+                            
+                            # Các từ khóa tiếng Anh
+                            "meat", "beef", "pork", "chicken", "fish", "seafood", "shrimp", "crab", "egg",
+                            "milk", "dairy", "cheese", "butter", "cream", "yogurt", "turkey", "duck", "goose",
+                            "lamb", "bacon", "ham", "sausage", "hamburger", "steak"
+                        ]
+                        
+                        # Kiểm tra từ khóa trong tên món ăn
+                        food_name_lower = str(food_name).lower() if not isinstance(food_name, float) else ""
+                        
+                        # Lấy nguyên liệu nếu có
+                        ingredients = ""
+                        if 'Nguyên liệu' in food_row and pd.notna(food_row['Nguyên liệu']):
+                            ingredients = str(food_row['Nguyên liệu']).lower()
+                        
+                        is_food_vegan = not any(keyword in food_name_lower or keyword in ingredients for keyword in meat_keywords)
+                    
+                    # Tính điểm cho món ăn (món đầu có điểm cao nhất)
+                    score = max_score - i
+                    
+                    # Bỏ qua món có sữa, bánh (tuỳ chọn)
+                    food_name_lower = str(food_name).lower() if not isinstance(food_name, float) else ""
+                    ingredients = ""
+                    if 'Nguyên liệu' in food_row and pd.notna(food_row['Nguyên liệu']):
+                        ingredients = str(food_row['Nguyên liệu']).lower()
+                    
+                    if "milk" in food_name_lower or "milk" in ingredients or "sữa" in food_name_lower or "sữa" in ingredients:
                         continue
                     
-                    # Only add if this food name hasn't been seen before
-                    if food_name not in unique_foods:
-                        unique_foods[food_name] = {
-                            'food_id': food_id,
-                            'ingredients': ingredients
-                        }
+                    # Tạo đối tượng món ăn
+                    food_item = {
+                        'name': food_name,
+                        'ingredients': ingredients if ingredients else "Không có thông tin nguyên liệu",
+                        'score': score,
+                        'vegan': is_food_vegan,
+                        'index': int(food_idx)
+                    }
                     
-                    # Continue collecting until we have a good pool of unique foods
-                    if len(unique_foods) >= 80:
-                        break
+                    # Thêm các thông tin dinh dưỡng nếu có
+                    for col in ['Carbohydrate','Calories','Protein','Sugar','Fiber dietary',
+                               'Vitamin C','Vitamin D','Vitamin B12','Calcium','Iron',
+                               'Cholesterol','Phosphorous','Folic acid','Saturated fat',
+                               'Potassium','Sodium']:
+                        if col in food_row and pd.notna(food_row[col]):
+                            food_item[col] = float(food_row[col])
+                    
+                    # Thêm các thông tin khác nếu có
+                    for col in ['Sơ chế', 'Thực hiện', 'Cách dùng', 'Mách nhỏ', 'Thực đơn', 'Lời khuyên']:
+                        if col in food_row and pd.notna(food_row[col]):
+                            food_item[col] = str(food_row[col])
+                    
+                    recommended_foods.append(food_item)
             except Exception as e:
-                logger.error(f"Error mapping food {food_id}: {str(e)}")
+                logger.error(f"Error processing food index {food_idx}: {str(e)}")
                 continue
         
-        logger.info(f"Found {len(unique_foods)} unique valid foods after filtering milk")
-        
-        # Convert to lists for Gemini filtering
-        vn_foods = list(unique_foods.keys())
-        vn_ingredients = [info['ingredients'] for info in unique_foods.values()]
-        
-        # Use Gemini to filter out snacks and sweet foods
-        logger.info("Using Gemini to filter out snacks and sweet foods")
-        try:
-            keep_flags = filter_foods_with_gemini(vn_foods, vn_ingredients)
-            logger.info("Successfully filtered foods with Gemini")
-        except Exception as e:
-            logger.error(f"Gemini filtering failed, using fallback method: {str(e)}")
-            keep_flags = filter_foods_without_gemini(vn_foods, vn_ingredients)
-            logger.info("Used fallback filtering method")
-
-        # Log the results of the filtering
-        
-        # Keep only the foods that passed both filters
-        filtered_vn_foods = []
-        filtered_vn_ingredients = []
-        for i, keep in enumerate(keep_flags):
-            if keep and i < len(vn_foods):
-                filtered_vn_foods.append(vn_foods[i])
-                filtered_vn_ingredients.append(vn_ingredients[i])
-                
-                # Stop once we have 20 filtered foods
-                if len(filtered_vn_foods) >= 20:
-                    break
-        
-        logger.info(f"Kept {len(filtered_vn_foods)} foods after Gemini filtering")
-        
-        # If we still don't have enough foods, add more from the unique_foods dictionary
-        if len(filtered_vn_foods) < 20:
-            logger.info(f"Need {20 - len(filtered_vn_foods)} more foods to reach 20 recommendations")
+        # Nếu người dùng ăn chay, lọc ra chỉ các món chay
+        if is_vegan:
+            logger.info("Lọc món ăn cho người dùng ăn chay")
             
-            # Add remaining foods that weren't already filtered
-            for food_name, info in unique_foods.items():
-                if food_name not in filtered_vn_foods:
-                    filtered_vn_foods.append(food_name)
-                    filtered_vn_ingredients.append(info['ingredients'])
-                    
-                    if len(filtered_vn_foods) >= 20:
-                        break
-        
-        # Ensure we have exactly 20 recommendations
-        while len(filtered_vn_foods) < 20:
-            generated_name = f"Healthy Alternative {len(filtered_vn_foods)+1}"
-            # Make sure even generated names are unique
-            while generated_name in filtered_vn_foods:
-                generated_name += " (Variant)"
-                
-            filtered_vn_foods.append(generated_name)
-            filtered_vn_ingredients.append("Generated healthy recommendation")
-        
-        # Trim to exactly 20
-        filtered_vn_foods = filtered_vn_foods[:20]
-        filtered_vn_ingredients = filtered_vn_ingredients[:20]
-        
-        # Verify all names are unique
-        unique_names = set(filtered_vn_foods)
-        if len(unique_names) != len(filtered_vn_foods):
-            logger.warning("Duplicate food names found after filtering! Fixing...")
-            
-            # Fix duplicates
-            fixed_foods = []
-            fixed_ingredients = []
-            seen_names = set()
-            
-            for name, ingredients in zip(filtered_vn_foods, filtered_vn_ingredients):
-                if name in seen_names:
-                    # Add a suffix to make the name unique
-                    suffix = 1
-                    while f"{name} (Variant {suffix})" in seen_names:
-                        suffix += 1
-                    unique_name = f"{name} (Variant {suffix})"
-                    fixed_foods.append(unique_name)
+            # Kiểm tra trong vegan_dishes.txt, nếu không tìm thấy món đó thì không chọn
+            if vegan_dishes:  # Chỉ lọc nếu đã tải được danh sách món chay
+                logger.info(f"Lọc theo danh sách chay từ vegan_dishes.txt ({len(vegan_dishes)} món)")
+                vegan_foods = [food for food in recommended_foods if food['name'] in vegan_dishes]
+                if vegan_foods:  # Nếu có món chay được đề xuất từ danh sách
+                    recommended_foods = vegan_foods
+                    logger.info(f"Đã lọc được {len(recommended_foods)} món chay từ danh sách vegan_dishes.txt")
                 else:
-                    fixed_foods.append(name)
-                    
-                fixed_ingredients.append(ingredients)
-                seen_names.add(fixed_foods[-1])
-            
-            filtered_vn_foods = fixed_foods
-            filtered_vn_ingredients = fixed_ingredients
+                    # Nếu không tìm thấy món nào trong danh sách, dùng biện pháp dự phòng với món được đánh dấu là vegan
+                    backup_vegan_foods = [food for food in recommended_foods if food['vegan']]
+                    if backup_vegan_foods:
+                        recommended_foods = backup_vegan_foods
+                        logger.info(f"Không tìm thấy món nào trong vegan_dishes.txt, sử dụng {len(backup_vegan_foods)} món được đánh dấu là chay")
+                    else:
+                        logger.warning("Không có món chay nào được đề xuất, giữ nguyên danh sách")
+            else:
+                # Nếu không có danh sách món chay, dùng biện pháp dự phòng
+                backup_vegan_foods = [food for food in recommended_foods if food['vegan']]
+                if backup_vegan_foods:
+                    recommended_foods = backup_vegan_foods
+                    logger.info(f"Không tìm thấy file vegan_dishes.txt, sử dụng {len(backup_vegan_foods)} món được đánh dấu là chay")
+                else:
+                    logger.warning("Không có món chay nào được đề xuất, giữ nguyên danh sách")
+        
+        # Giới hạn số lượng món ăn trả về tối đa là 200
+        if len(recommended_foods) > 200:
+            logger.info(f"Giới hạn kết quả từ {len(recommended_foods)} xuống 200 món ăn")
+            recommended_foods = recommended_foods[:200]
         
         # Trả kết quả - đảm bảo tất cả đều là kiểu dữ liệu Python tiêu chuẩn
         result = {
@@ -1387,70 +1544,25 @@ def get_recommendation_for_new_user(input: NewUserInput):
                 "special_diet": input.spefical_diet,
                 "diseases": input.disease
             },
-            "recommendations": []
+            "is_vegan": is_vegan,
+            "recommendations": recommended_foods
         }
-        
-        for name, ingredients in zip(filtered_vn_foods, filtered_vn_ingredients):
-            # Đảm bảo name và ingredients là chuỗi
-            if not isinstance(name, str):
-                name = str(name)
-            if not isinstance(ingredients, str):
-                ingredients = str(ingredients)
-                
-            result['recommendations'].append({
-                "name": name, 
-                "ingredients": ingredients
-            })
-        
-        # ===== Bổ sung enrich thông tin từ food_recipe.csv và tong_hop_dinh_duong.csv =====
-        import pandas as pd
-        food_recipe_df = pd.read_csv('food_recipe.csv')
-        nutrition_df = pd.read_csv('food_nutrition_vn.csv')
-        enriched = []
-        for rec in result['recommendations']:
-            food_name = rec['name'] if 'name' in rec else rec.get('Tên món ăn')
-            # Lấy thông tin từ food_recipe.csv
-            recipe_row = food_recipe_df[food_recipe_df['Tiêu đề'] == food_name]
-            if not recipe_row.empty:
-                for col in ['Tiêu đề', 'Nguyên liệu', 'Sơ chế', 'Thực hiện', 'Cách dùng', 'Mách nhỏ', 'Thực đơn', 'Lời khuyên']:
-                    rec[col] = recipe_row.iloc[0][col]
-            # Lấy thông tin dinh dưỡng từ tong_hop_dinh_duong.csv
-            nutrition_row = nutrition_df[nutrition_df['Tên món ăn'] == food_name]
-            if not nutrition_row.empty:
-                for col in ['Tên món ăn','Carbohydrate','Calories','Protein','Sugar','Fiber dietary','Vitamin C','Vitamin D','Vitamin B12','Calcium','Iron','Cholesterol','Phosphorous','Folic acid','Saturated fat','Potassium','Sodium']:
-                    rec[col] = nutrition_row.iloc[0][col]
-            enriched.append(rec)
-        
-        # Final check to ensure exactly 20 enriched recommendations
-        if len(enriched) != 20:
-            logger.warning(f"After enrichment, found {len(enriched)} recommendations instead of 20")
-            # Add or trim to exactly 20
-            while len(enriched) < 20:
-                generated_name = f"Healthy Food Option {len(enriched)+1}"
-                # Check for duplicate names in enriched
-                existing_names = [e.get('name', '') for e in enriched]
-                while generated_name in existing_names:
-                    generated_name += " (Variant)"
-                    
-                enriched.append({
-                    "name": generated_name,
-                    "ingredients": "Balanced nutritional profile"
-                })
-            enriched = enriched[:20]
         
         logger.info(f"Đã tạo gợi ý thành công cho user mới dựa trên user tương tự {most_similar_user_id}")
         # Đảm bảo kết quả cuối cùng không chứa kiểu dữ liệu NumPy hoặc PyTorch
-        enriched = clean_float_values(enriched)
+        recommended_foods = clean_float_values(recommended_foods)
         
         return convert_to_python_native({
             "status": "success", 
-            "recommendations": enriched, 
+            "recommendations": recommended_foods, 
+            "total_recommendations": len(recommended_foods),
             "generated_tags": user_features.get('tags'),
             "health_info": {
                 "symptoms": input.symptom,
                 "special_diet": input.spefical_diet,
                 "diseases": input.disease
-            }
+            },
+            "is_vegan": is_vegan
         })
         
     except Exception as e:
@@ -1462,7 +1574,6 @@ def get_recommendation_for_new_user(input: NewUserInput):
             "message": "Đã xảy ra lỗi khi xử lý yêu cầu", 
             "detail": str(e)
         }
-
 
 
 @app.get("/")
@@ -1483,8 +1594,8 @@ def health_check():
     # Kiểm tra file graph
     graph_file = None
     graph_paths = [
-        os.path.join(parent_dir, 'processed_data/benchmark_macro.pt'),
-        os.path.join(BASE_DIR, '../processed_data/benchmark_macro.pt')
+        os.path.join(parent_dir, 'vn_food_graph.pt'),
+        os.path.join(BASE_DIR, 'vn_food_graph.pt')
     ]
     for path in graph_paths:
         if os.path.exists(path):
@@ -1512,20 +1623,45 @@ def health_check():
         "path": model_file if model_file else "Not found"
     }
     
-    # Kiểm tra file mapping
-    mapping_file = None
+    # Kiểm tra food_id_name_mapping.json
+    food_id_mapping_file = None
     mapping_paths = [
-        os.path.join(parent_dir, 'us_to_vn_food_mapping_all.csv'),
-        os.path.join(BASE_DIR, '../us_to_vn_food_mapping_all.csv')
+        os.path.join(parent_dir, 'food_id_name_mapping.json'),
+        os.path.join(BASE_DIR, 'food_id_name_mapping.json'),
+        'food_id_name_mapping.json'
     ]
     for path in mapping_paths:
         if os.path.exists(path):
-            mapping_file = path
+            food_id_mapping_file = path
             break
-    
-    health_status["components"]["mapping_file"] = {
-        "status": "up" if mapping_file else "down",
-        "path": mapping_file if mapping_file else "Not found"
+
+    health_status["components"]["food_id_mapping_file"] = {
+        "status": "up" if food_id_mapping_file else "down",
+        "path": food_id_mapping_file if food_id_mapping_file else "Not found"
+    }
+
+    # Kiểm tra food_tagging.csv
+    food_tagging_file = None
+    tagging_paths = [
+        os.path.join(parent_dir, 'food_tagging.csv'),
+        os.path.join(BASE_DIR, 'food_tagging.csv'),
+        'food_tagging.csv'
+    ]
+    for path in tagging_paths:
+        if os.path.exists(path):
+            food_tagging_file = path
+            break
+
+    health_status["components"]["food_tagging_file"] = {
+        "status": "up" if food_tagging_file else "down",
+        "path": food_tagging_file if food_tagging_file else "Not found"
+    }
+
+    # Kiểm tra enhanced mapping
+    enhanced_mapping = get_enhanced_mapping()
+    health_status["components"]["enhanced_mapping"] = {
+        "status": "up" if enhanced_mapping else "down",
+        "count": len(enhanced_mapping) if enhanced_mapping else 0
     }
     
     # Kiểm tra tổng thể
@@ -1538,8 +1674,8 @@ def health_check():
 
 # For direct execution
 if __name__ == "__main__":
-    with open('us_to_vn_food_simple_mapping.json', 'r', encoding='utf-8') as f:
-        data = json.load(f)   
+    # Khởi tạo enhanced mapping khi ứng dụng bắt đầu
+    get_enhanced_mapping()
     port = 8000
     host = "0.0.0.0"
     logger.info(f"Starting FastAPI server at http://{host}:{port}")
