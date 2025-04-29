@@ -174,8 +174,8 @@ def extract_food_description(text):
     return match.group(1)
 
 
-# def tokenize(texts, max_length=256, tokenizer=BertTokenizer.from_pretrained('bert-base-uncased')):
-#     return tokenizer(texts, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
+def tokenize(texts, max_length=256, tokenizer=BertTokenizer.from_pretrained('bert-base-uncased')):
+    return tokenizer(texts, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
 
 
 def extract_descriptions(graph, idx_list, prompt_type='food'):

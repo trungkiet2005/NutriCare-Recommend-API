@@ -3,8 +3,6 @@ import argparse
 from RCSYS_models import *
 from utils import *
 import wandb
-import os
-os.environ["WANDB_SILENT"] = "true"  # Add this line
 
 
 def main():
@@ -173,9 +171,6 @@ def main():
                 'test_percentage_recommended_foods': round(percentage_recommended_foods, 5)
             })
 
-    # Add this line to save the trained model
-    torch.save(model.state_dict(), 'trained_model.pth')
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -201,12 +196,12 @@ if __name__ == '__main__':
                         help='Number of layers in the model.')
     parser.add_argument('--use_wandb', type=bool, default=False,
                         help='Whether to use wandb for logging.')
-    parser.add_argument('--feature_threshold', type=float, default=0.3,
+    parser.add_argument('--feature_threshold', type=int, default=0.3,
                         help='Threshold for feature selection.')
     args = parser.parse_args()
 
     if args.use_wandb:
-        wandb.login(key='')  # This will no longer prompt for choices
+        wandb.login(key='')
         sweep_config = {
             'name': 'sweep-try-RCSYS',
             'method': 'grid',
