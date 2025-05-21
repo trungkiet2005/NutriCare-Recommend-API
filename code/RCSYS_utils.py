@@ -8,8 +8,11 @@ from min_norm_solvers import MinNormSolver, gradient_normalizers
 from sklearn.metrics import jaccard_score
 from torch.nn.functional import cosine_similarity
 import torch_geometric
+import numpy as np
 
-from utils import *
+# Thay đổi cách import từ utils, chỉ import những hàm cần thiết thay vì import tất cả (*)
+# Nếu cần sử dụng hàm tokenize, hãy import riêng
+from utils import generate_edge_mapping, set_split, split_edges
 
 
 def read_graph_data(path='../processed_data/benchmark_for_recsys.pt'):

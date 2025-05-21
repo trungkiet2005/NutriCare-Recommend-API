@@ -59,13 +59,22 @@ def filter_unwanted_foods(food_df, exclude_keywords=None):
     return filtered_df
 
 
-
-
-
-
-food_vn_df = pd.read_csv('food_recipe.csv')
+food_vn_df = pd.read_csv('recipes_cleaned.csv')
 food_nutrition_df = pd.read_csv('food_nutrition_vn.csv')
 
+# In ra số dòng không có dữ liệu null trong mỗi DataFrame
+print("\nSố dòng không có dữ liệu null trong food_recipe:")
+print(food_vn_df.dropna().shape[0])
+
+print("\nSố dòng không có dữ liệu null trong food_nutrition_vn:")
+print(food_nutrition_df.dropna().shape[0])
+
+# Đếm số dòng không null trong cột Sơ chế và Thực hiện
+print("\nSố dòng không null trong cột Sơ chế:")
+print(food_vn_df['Sơ chế'].count())
+
+print("\nSố dòng không null trong cột Thực hiện:")
+print(food_vn_df['Thực hiện'].count())
 
 merge_df = pd.merge(food_vn_df, food_nutrition_df, left_on='Tiêu đề', right_on='Tên món ăn', how='left')
 exclude_keywords = ["ngọt", "sữa", "bánh", "đường", "sweet", "milk", "cake", "bread", "sugar", "cheese", "candy", "pastry"]
@@ -79,3 +88,5 @@ print(merge_filter_df)
 print(merge_df)
 print(merge_df.columns)
 print(merge_df.describe())
+print(merge_df.dropna().shape[0])
+

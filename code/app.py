@@ -1267,6 +1267,10 @@ def get_recommendation_for_new_user(input: NewUserInput):
             "không sử dụng thịt", "không sử dụng cá", "không sử dụng sữa", "không sử dụng trứng",
             "kiêng thịt", "kiêng cá", "kiêng trứng", "kiêng sữa", "ăn kiêng đạm động vật",
             "không dùng thịt", "không dùng cá", "không dùng trứng", "không dùng sữa",
+            # Ngôn ngữ giới trẻ
+            "ko ăn thịt", "ko ăn cá", "ko ăn hải sản", "ko ăn trứng", "ko uống sữa",
+            "ko sử dụng thịt", "ko sử dụng cá", "ko sử dụng sữa", "ko sử dụng trứng",
+            "ko dùng thịt", "ko dùng cá", "ko dùng trứng", "ko dùng sữa",
             
             # Tiếng Anh 
             "vegan", "vegetarian", "plant-based", "plant based", "no meat", "no fish",
@@ -1365,8 +1369,8 @@ def get_recommendation_for_new_user(input: NewUserInput):
             logger.warning(f"Không có gợi ý nào cho user tương tự {most_similar_user_id}")
             return {"status": "error", "message": "Không tìm thấy đề xuất cho user tương tự"}
         
-        # ===== THAY ĐỔI: ĐỌC TRỰC TIẾP TỪ FOOD_TAGGING.CSV =====
-        logger.info("Đang đọc thông tin món ăn trực tiếp từ food_tagging.csv")
+        # ===== THAY ĐỔI: ĐỌC TRỰC TIẾP TỪ FOOD_TAGGING.CSV VÀ RECIPES_CLEANED.CSV =====
+        logger.info("Đang đọc thông tin món ăn từ food_tagging.csv và recipes_cleaned.csv")
         
         # Tìm đường dẫn file food_tagging.csv
         food_tagging_paths = [
@@ -1377,10 +1381,25 @@ def get_recommendation_for_new_user(input: NewUserInput):
             os.path.join(parent_dir, 'food_tagging_filter.csv')
         ]
         
+        # Tìm đường dẫn file recipes_cleaned.csv
+        recipes_cleaned_paths = [
+            os.path.join(BASE_DIR, 'recipes_cleaned.csv'),
+            os.path.join(parent_dir, 'recipes_cleaned.csv'),
+            'code/recipes_cleaned.csv',
+            'recipes_cleaned.csv'
+        ]
+        
         food_tagging_file = None
         for path in food_tagging_paths:
             if os.path.exists(path):
                 food_tagging_file = path
+                break
+        
+        recipes_cleaned_file = None
+        for path in recipes_cleaned_paths:
+            if os.path.exists(path):
+                recipes_cleaned_file = path
+                logger.info(f"Tìm thấy file recipes_cleaned.csv tại: {path}")
                 break
         
         if not food_tagging_file:
@@ -1394,6 +1413,16 @@ def get_recommendation_for_new_user(input: NewUserInput):
         except Exception as e:
             logger.error(f"Lỗi khi đọc file {food_tagging_file}: {str(e)}")
             return {"status": "error", "message": f"Lỗi khi đọc file {food_tagging_file}: {str(e)}"}
+        
+        # Đọc file recipes_cleaned.csv nếu tìm thấy
+        df_recipes = None
+        if recipes_cleaned_file:
+            try:
+                df_recipes = pd.read_csv(recipes_cleaned_file)
+                logger.info(f"Đã đọc {len(df_recipes)} công thức từ {recipes_cleaned_file}")
+            except Exception as e:
+                logger.error(f"Lỗi khi đọc file {recipes_cleaned_file}: {str(e)}")
+                logger.info("Tiếp tục mà không có dữ liệu từ recipes_cleaned.csv")
         
         # Lấy tên và thông tin món ăn từ indices
         recommended_foods = []
@@ -1480,10 +1509,78 @@ def get_recommendation_for_new_user(input: NewUserInput):
                         if col in food_row and pd.notna(food_row[col]):
                             food_item[col] = float(food_row[col])
                     
-                    # Thêm các thông tin khác nếu có
-                    for col in ['Sơ chế', 'Thực hiện', 'Cách dùng', 'Mách nhỏ', 'Thực đơn', 'Lời khuyên']:
+                    # Thêm các thông tin khác nếu có - bỏ "Thực đơn", "Lời khuyên"
+                    required_fields = ['Sơ chế', 'Thực hiện', 'Cách dùng', 'Mách nhỏ']
+                    for col in required_fields:
                         if col in food_row and pd.notna(food_row[col]):
                             food_item[col] = str(food_row[col])
+                        else:
+                            # Tìm thông tin trong các cột khác nếu có
+                            alternative_columns = {
+                                'Sơ chế': ['Sơ chế', 'Chuẩn bị', 'Preparation'],
+                                'Thực hiện': ['Thực hiện', 'Cách làm', 'Instructions'],
+                                'Cách dùng': ['Cách dùng', 'Thưởng thức', 'Serving'],
+                                'Mách nhỏ': ['Mách nhỏ', 'Lưu ý', 'Tips']
+                            }
+                            
+                            found = False
+                            for alt_col in alternative_columns[col]:
+                                if alt_col in food_row and pd.notna(food_row[alt_col]):
+                                    food_item[col] = str(food_row[alt_col])
+                                    found = True
+                                    break
+                            
+                            if not found:
+                                food_item[col] = "Không có thông tin"
+                    
+                    # Bổ sung thông tin từ recipes_cleaned.csv nếu có
+                    if df_recipes is not None:
+                        # Tìm món ăn trong recipes_cleaned dựa vào tên món ăn
+                        recipe_match = df_recipes[df_recipes['Tiêu đề'] == food_name]
+                        
+                        if not recipe_match.empty:
+                            # Lấy hàng đầu tiên
+                            recipe_row = recipe_match.iloc[0]
+                            
+                            # Thêm các trường từ recipes_cleaned
+                            additional_fields = [
+                                'URL', 'Image', 'YouTube', 'Description', 'Khẩu phần', 
+                                'Thời gian thực hiện', 'Độ khó', 'Categories'
+                            ]
+                            
+                            for field in additional_fields:
+                                if field in recipe_row and pd.notna(recipe_row[field]):
+                                    # Chuyển đổi tên trường thành tiếng Việt
+                                    field_mapping = {
+                                        'Tiêu đề': 'title',
+                                        'Description': 'description',
+                                        'Khẩu phần': 'serving_size',
+                                        'Thời gian thực hiện': 'preparation_time',
+                                        'Độ khó': 'difficulty_level',
+                                        'Categories': 'categories',
+                                        'URL': 'url',
+                                        'Image': 'image_url',
+                                        'YouTube': 'youtube_url'
+                                    }
+                                    
+                                    field_key = field_mapping.get(field, field)
+                                    food_item[field_key] = str(recipe_row[field])
+                            
+                            # Bỏ đoạn này để loại bỏ các trường đã yêu cầu xóa
+                            # if 'Nguyên liệu' in recipe_row and pd.notna(recipe_row['Nguyên liệu']):
+                            #     food_item['ingredients_detail'] = str(recipe_row['Nguyên liệu'])
+                            # 
+                            # if 'Sơ chế' in recipe_row and pd.notna(recipe_row['Sơ chế']):
+                            #     food_item['preparation_detail'] = str(recipe_row['Sơ chế'])
+                            # 
+                            # if 'Thực hiện' in recipe_row and pd.notna(recipe_row['Thực hiện']):
+                            #     food_item['execution_detail'] = str(recipe_row['Thực hiện'])
+                            # 
+                            # if 'Cách dùng' in recipe_row and pd.notna(recipe_row['Cách dùng']):
+                            #     food_item['serving_detail'] = str(recipe_row['Cách dùng'])
+                            # 
+                            # if 'Mách nhỏ' in recipe_row and pd.notna(recipe_row['Mách nhỏ']):
+                            #     food_item['tips'] = str(recipe_row['Mách nhỏ'])
                     
                     recommended_foods.append(food_item)
             except Exception as e:
@@ -1523,39 +1620,44 @@ def get_recommendation_for_new_user(input: NewUserInput):
             logger.info(f"Giới hạn kết quả từ {len(recommended_foods)} xuống 200 món ăn")
             recommended_foods = recommended_foods[:200]
         
-        # Trả kết quả - đảm bảo tất cả đều là kiểu dữ liệu Python tiêu chuẩn
-        result = {
-            "status": "success",
-            "similar_users": [
-                {
-                    "user_id": int(user['user_id']),
-                    "similarity": float(round(user['similarity'], 4)),
-                    "details": convert_to_python_native(user.get('details', {}))
-                } for user in similar_users
-            ],
-            "most_similar_user": {
-                "user_id": int(similar_users[0]['user_id']),
-                "similarity": float(round(similar_users[0]['similarity'], 4)),
-                "details": convert_to_python_native(similar_users[0].get('details', {}))
-            },
-            "generated_tags": user_features.get('tags'),
-            "health_info": {
-                "symptoms": input.symptom,
-                "special_diet": input.spefical_diet,
-                "diseases": input.disease
-            },
-            "is_vegan": is_vegan,
-            "recommendations": recommended_foods
-        }
+        # Lọc bỏ các món ăn có giá trị null (thiếu dữ liệu quan trọng)
+        filtered_foods = []
+        for food in recommended_foods:
+            # Kiểm tra các trường bắt buộc
+            required_fields = ['name', 'ingredients', 'score', 'index']
+            if all(food.get(field) is not None for field in required_fields):
+                # Kiểm tra các giá trị dinh dưỡng
+                nutrition_values = [
+                    food.get('Carbohydrate'),
+                    food.get('Calories'),
+                    food.get('Protein'),
+                    food.get('Sugar'),
+                    food.get('Fiber dietary'),
+                    food.get('Vitamin C'),
+                    food.get('Vitamin D'),
+                    food.get('Vitamin B12'),
+                    food.get('Calcium'),
+                    food.get('Iron'),
+                    food.get('Cholesterol'),
+                    food.get('Phosphorous'),
+                    food.get('Folic acid'),
+                    food.get('Saturated fat'),
+                    food.get('Potassium'),
+                    food.get('Sodium')
+                ]
+                
+                # Thêm món ăn vào danh sách kết quả nếu có thông tin cơ bản
+                filtered_foods.append(food)
         
-        logger.info(f"Đã tạo gợi ý thành công cho user mới dựa trên user tương tự {most_similar_user_id}")
-        # Đảm bảo kết quả cuối cùng không chứa kiểu dữ liệu NumPy hoặc PyTorch
-        recommended_foods = clean_float_values(recommended_foods)
+        logger.info(f"Đã lọc từ {len(recommended_foods)} xuống {len(filtered_foods)} món ăn sau khi kiểm tra độ đầy đủ")
+        
+        # Trả kết quả - đảm bảo tất cả đều là kiểu dữ liệu Python tiêu chuẩn
+        filtered_foods = clean_float_values(filtered_foods)
         
         return convert_to_python_native({
             "status": "success", 
-            "recommendations": recommended_foods, 
-            "total_recommendations": len(recommended_foods),
+            "recommendations": filtered_foods, 
+            "total_recommendations": len(filtered_foods),
             "generated_tags": user_features.get('tags'),
             "health_info": {
                 "symptoms": input.symptom,
@@ -1677,6 +1779,6 @@ if __name__ == "__main__":
     # Khởi tạo enhanced mapping khi ứng dụng bắt đầu
     get_enhanced_mapping()
     port = 8000
-    host = "0.0.0.0"
+    host = "127.0.0.1"
     logger.info(f"Starting FastAPI server at http://{host}:{port}")
     uvicorn.run(app, host=host, port=port)

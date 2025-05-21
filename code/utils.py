@@ -15,7 +15,7 @@ import re
 from torch.cuda.amp import GradScaler, autocast
 
 from torch.utils.data import Dataset, DataLoader
-from transformers import BertTokenizer, BertModel, BertForSequenceClassification
+from transformers import BertModel, BertForSequenceClassification
 from torch.optim import AdamW
 import random
 
@@ -174,7 +174,23 @@ def extract_food_description(text):
     return match.group(1)
 
 
-def tokenize(texts, max_length=256, tokenizer=BertTokenizer.from_pretrained('bert-base-uncased')):
+def tokenize(texts, max_length=256, tokenizer=None):
+    if tokenizer is None:
+        # Chỉ import và tạo tokenizer khi hàm được gọi
+        try:
+            # Thiết lập cache dir trong thư mục tạm thời cho môi trường HF Spaces
+            import os
+            os.environ['TRANSFORMERS_CACHE'] = '/tmp/huggingface/transformers'
+            
+            from transformers import BertTokenizer
+            tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        except Exception as e:
+            import logging
+            logging.error(f"Không thể tải BertTokenizer: {str(e)}")
+            # Trả về None nếu không tải được tokenizer
+            return None
+    
+    # Tiếp tục với tokenization như bình thường
     return tokenizer(texts, padding='max_length', max_length=max_length, truncation=True, return_tensors='pt')
 
 

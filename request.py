@@ -16,7 +16,7 @@ payload = {
     "household_income": "10 - 15 triệu/tháng",
     "education": "Đại học",
     "symptom": ["mệt mỏi", "đau đầu"],
-    "spefical_diet": ["ăn"],
+    "spefical_diet": ["ăn kiêng"],
     "disease": ["huyết áp cao", "tiểu đường"],
 }
 
